@@ -6,3 +6,95 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum FeeModelType {
+  FREE_TIER
+  CREDIT_BASED
+}
+
+enum UsageEventStatus {
+  PENDING
+  CAPTURED
+  CANCELLED
+  EXPIRED
+}
+
+enum TopUpStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}
+
+model Developer {
+  id            String   @id @default(cuid())
+  privyId       String   @unique
+  walletAddress String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  agents Agent[]
+}
+
+model Agent {
+  id             String       @id @default(cuid())
+  name           String
+  feeModelType   FeeModelType
+  // Store flexible config like { "threshold": 50, "rate": "0.0001" } or
+  // { "creditsPerPrompt": 10, "topUpOptions": [...] }
+  feeModelConfig Json
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  developerId String
+  developer   Developer @relation(fields: [developerId], references: [id])
+
+  usageEvents  UsageEvent[]
+  userBalances UserBalance[]
+}
+
+model UserBalance {
+  userWalletAddress String
+  agentId           String
+
+  ethBalance    Decimal @default(0)
+  creditBalance BigInt  @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agent Agent @relation(fields: [agentId], references: [id])
+
+  @@id([userWalletAddress, agentId]) // Compound primary key
+}
+
+model UsageEvent {
+  id     String           @id @default(cuid()) // 'eventId'
+  status UsageEventStatus @default(PENDING)
+
+  feeDeducted     Decimal?
+  creditsDeducted BigInt?
+
+  idempotencyKey String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id])
+
+  userWalletAddress String
+
+  @@unique([agentId, idempotencyKey])
+}
+
+model TopUpTransaction {
+  txHash String      @id // The on-chain transaction hash is our primary key
+  status TopUpStatus @default(PENDING)
+
+  userWalletAddress String // The user to credit upon confirmation
+  agentId           String // The agent context for the top-up
+  amountInEth       String // The amount we expect to see confirmed on-chain
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
