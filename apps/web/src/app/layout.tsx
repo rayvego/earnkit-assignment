@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import "./globals.css";
 import PrivyAuthProvider from "./privy-provider";
+import TanstackQueryProvider from "./tanstack-provider";
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",
@@ -30,8 +31,10 @@ export default function RootLayout({
 				className={`${geistSans.variable} ${geistMono.variable} antialiased`}
 			>
 				<PrivyAuthProvider>
-					<Toaster />
-					{children}
+					<TanstackQueryProvider>
+						<Toaster />
+						{children}
+					</TanstackQueryProvider>
 				</PrivyAuthProvider>
 			</body>
 		</html>
