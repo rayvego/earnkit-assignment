@@ -1,9 +1,19 @@
+import { verifyPrivyToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { type NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
 	try {
-		const { privyId, walletAddress } = await request.json();
+		const privyId = await verifyPrivyToken(request);
+
+		if (!privyId) {
+			return NextResponse.json(
+				{ success: false, message: "Unauthorized" },
+				{ status: 401 },
+			);
+		}
+
+		const { walletAddress } = await request.json();
 
 		let user = await prisma.developer.findUnique({
 			where: {

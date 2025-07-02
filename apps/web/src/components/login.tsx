@@ -13,20 +13,13 @@ export default function LoginButton() {
 
 	// Use mutation for the auth API call
 	const authMutation = useMutation({
-		mutationFn: async ({
-			privyId,
-			walletAddress,
-		}: {
-			privyId: string;
-			walletAddress: string;
-		}) => {
+		mutationFn: async ({ walletAddress }: { walletAddress: string }) => {
 			const response = await fetch("/api/auth", {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
-					privyId,
 					walletAddress,
 				}),
 			});
@@ -52,7 +45,6 @@ export default function LoginButton() {
 			console.log("User authenticated:", user.wallet.address);
 
 			authMutation.mutate({
-				privyId: user.id,
 				walletAddress: user.wallet.address,
 			});
 		}
