@@ -39,8 +39,9 @@ model Agent {
   id             String       @id @default(cuid())
   name           String
   feeModelType   FeeModelType
-  // Store flexible config like { "threshold": 50, "rate": "0.0001" } or
-  // { "creditsPerPrompt": 10, "topUpOptions": [...] }
+  // Store flexible config
+  // { "threshold": 50, "rate": "0.0001" }
+  // { "creditsPerPrompt": 10, "topUpOptions": [{ "creditAmount": 10, "pricePerCredit": "0.0001 ETH" }, { "creditAmount": 100, "pricePerCredit": "0.001 ETH" }] }
   feeModelConfig Json
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
