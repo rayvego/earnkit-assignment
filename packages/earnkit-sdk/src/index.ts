@@ -1,5 +1,6 @@
 export interface EarnKitConfig {
 	agentId: string;
+	baseUrl?: string;
 }
 
 interface TrackParams {
@@ -92,8 +93,8 @@ interface ApiErrorResponse {
  * Provides methods to interact with the EarnKit monetization platform.
  */
 export class EarnKit {
-	// A private property to store the agentId.
 	private agentId: string | null = null;
+	private baseUrl: string = "http://localhost:3000";
 
 	constructor() {
 		console.log("EarnKit SDK instance created!");
@@ -108,6 +109,7 @@ export class EarnKit {
 	 *
 	 * @param {EarnKitConfig} config - The configuration object for the SDK.
 	 * @param {string} config.agentId - The unique ID for your agent, found on the EarnKit dashboard.
+	 * @param {string} [config.baseUrl] - The base URL of the EarnKit API. Defaults to http://localhost:3000.
 	 * @returns {void}
 	 */
 	public initialize(config: EarnKitConfig): void {
@@ -122,9 +124,22 @@ export class EarnKit {
 			);
 		}
 
+		if (config.baseUrl) {
+			try {
+				// validate that it's a valid URL
+				new URL(config.baseUrl);
+				this.baseUrl = config.baseUrl;
+			} catch (_error) {
+				throw new Error(
+					"EarnKit Error: `baseUrl` provided to initialize() is not a valid URL.",
+				);
+			}
+		}
+
 		// store the validated agentId in the class instance for later use by other methods
 		this.agentId = config.agentId;
 		console.log(`EarnKit SDK initialized for agent: ${this.agentId}`);
+		console.log(`Using API base URL: ${this.baseUrl}`);
 	}
 
 	/**
@@ -168,7 +183,7 @@ export class EarnKit {
 		};
 
 		try {
-			const response = await fetch(`http://localhost:3000/api/earnkit/track`, {
+			const response = await fetch(`${this.baseUrl}/api/track`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
@@ -227,7 +242,7 @@ export class EarnKit {
 		};
 
 		try {
-			const response = await fetch(`http://localhost:3000/api/capture`, {
+			const response = await fetch(`${this.baseUrl}/api/capture`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
@@ -281,7 +296,7 @@ export class EarnKit {
 		};
 
 		try {
-			const response = await fetch(`http://localhost:3000/api/release`, {
+			const response = await fetch(`${this.baseUrl}/api/release`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
@@ -313,10 +328,7 @@ export class EarnKit {
 	public async getTopUpDetails(): Promise<TopUpDetailsResponse> {
 		if (!this.agentId) throw new Error("EarnKit: Not initialized.");
 
-		const url = new URL(
-			"http://localhost:3000/api/top-up-details",
-			window.location.origin,
-		);
+		const url = new URL(`${this.baseUrl}/api/top-up-details`);
 		url.searchParams.set("agentId", this.agentId);
 
 		const response = await fetch(url.toString());
@@ -337,7 +349,7 @@ export class EarnKit {
 	): Promise<SubmitTopUpResponse> {
 		if (!this.agentId) throw new Error("EarnKit: Not initialized.");
 
-		const response = await fetch("http://localhost:3000/api/top-up-details", {
+		const response = await fetch(`${this.baseUrl}/api/top-up-details`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
@@ -365,10 +377,7 @@ export class EarnKit {
 	}): Promise<UserBalance> {
 		if (!this.agentId) throw new Error("EarnKit: Not initialized.");
 
-		const url = new URL(
-			"http://localhost:3000/api/balance",
-			window.location.origin,
-		);
+		const url = new URL(`${this.baseUrl}/api/balance`);
 		url.searchParams.set("agentId", this.agentId);
 		url.searchParams.set("walletAddress", params.walletAddress);
 
