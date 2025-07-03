@@ -2,6 +2,59 @@ import { verifyPrivyToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { type NextRequest, NextResponse } from "next/server";
 
+// get a single agent for a developer
+export async function GET(
+	request: NextRequest,
+	{ params }: { params: Promise<{ agentId: string }> },
+) {
+	try {
+		const privyId = await verifyPrivyToken(request);
+
+		if (!privyId) {
+			return NextResponse.json(
+				{ success: false, message: "Unauthorized" },
+				{ status: 401 },
+			);
+		}
+
+		const { agentId } = await params;
+
+		const agent = await prisma.agent.findUnique({
+			where: { id: agentId },
+		});
+
+		if (!agent) {
+			return NextResponse.json(
+				{ success: false, message: "Agent not found" },
+				{ status: 404 },
+			);
+		}
+
+		// ensure the agent belongs to the authenticated developer
+		const developer = await prisma.developer.findUnique({
+			where: { privyId },
+		});
+
+		if (!developer || agent.developerId !== developer.id) {
+			return NextResponse.json(
+				{ success: false, message: "Forbidden" },
+				{ status: 403 },
+			);
+		}
+
+		return NextResponse.json(
+			{ success: true, data: agent, message: "Agent fetched successfully" },
+			{ status: 200 },
+		);
+	} catch (error) {
+		console.error("Error fetching agent: ", error);
+		return NextResponse.json(
+			{ success: false, message: "Internal server error" },
+			{ status: 500 },
+		);
+	}
+}
+
 // update an agent for a developer
 export async function PUT(
 	request: NextRequest,

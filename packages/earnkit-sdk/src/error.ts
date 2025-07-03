@@ -12,8 +12,7 @@ export class EarnKitError extends Error {
 /**
  * Thrown when the SDK is not properly initialized before use,
  * or when initialization is attempted with invalid configuration.
- */
-export class EarnKitInitializationError extends EarnKitError {
+ */ export class EarnKitInitializationError extends EarnKitError {
 	constructor(message: string) {
 		super(message);
 		this.name = "EarnKitInitializationError";

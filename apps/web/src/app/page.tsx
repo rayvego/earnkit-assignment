@@ -1,33 +1,39 @@
-// apps/web/src/app/page.tsx
-"use client";
+'use client';
 
-import LoginButton from "@/components/login";
 import { Button } from "@/components/ui/button";
-import { earnkit } from "earnkit-sdk"; // It just works!
-import { useEffect } from "react";
-import toast from "react-hot-toast";
+import { usePrivy } from "@privy-io/react-auth";
+import { useRouter } from "next/navigation";
 
-export default function Home() {
-	useEffect(() => {
-		// Initialize the SDK when the component mounts
-		earnkit.initializeAgent("agent-123-test");
-	}, []);
+export default function LoginPage() {
+	const { ready, authenticated, login } = usePrivy();
+	const router = useRouter();
 
-	async function handleClick() {
-		try {
-			await earnkit.trackPrompt({ walletAddress: "0xabc...123" });
-			toast.success("Prompt tracked successfully!");
-		} catch (error) {
-			console.error(error);
-			alert("Failed to track prompt.");
+	const handleLogin = () => {
+		if (ready && authenticated) {
+			router.push("/dashboard");
+		} else {
+			login();
 		}
-	}
+	};
 
 	return (
-		<main>
-			<h1>My AI Agent</h1>
-			<Button onClick={handleClick}>Track a Fake Prompt</Button>
-			<LoginButton />
+		<main className="flex min-h-screen flex-col items-center justify-center bg-white">
+			<div className="flex flex-col items-center gap-8">
+				<h1 className="text-5xl font-mono tracking-tighter">EarnKit AI</h1>
+				<p className="text-neutral-500 max-w-md text-center">
+					The easiest way to monetize your AI agent with usage-based fees and
+					a credit system.
+				</p>
+				<Button
+					size={"lg"}
+					className="rounded-full"
+					variant={"outline"}
+					onClick={handleLogin}
+					disabled={!ready}
+				>
+					Go to Dashboard
+				</Button>
+			</div>
 		</main>
 	);
 }
