@@ -96,6 +96,8 @@ interface ApiErrorResponse {
 	success: boolean;
 }
 
+const MAX_RETRIES = 2; // 1 initial attempt + 2 retries
+
 /**
  * The main EarnKit SDK class.
  * Provides methods to interact with the EarnKit monetization platform.
@@ -395,60 +397,96 @@ export class EarnKit {
 		path: string,
 		options: RequestInit = {},
 	): Promise<T> {
-		const url = path.startsWith("http") ? path : `${this.baseUrl}/api${path}`;
-
 		const controller = new AbortController();
 		const timeoutId = setTimeout(
 			() => controller.abort(),
 			this.requestTimeoutMs,
 		);
 
-		const defaultOptions: RequestInit = {
-			headers: {
-				"Content-Type": "application/json",
-			},
-			signal: controller.signal,
-		};
+		let lastError: Error | null = null;
 
-		const mergedOptions = { ...defaultOptions, ...options };
+		for (let i = 0; i <= MAX_RETRIES; i++) {
+			try {
+				const url = path.startsWith("http")
+					? path
+					: `${this.baseUrl}/api${path}`;
 
-		this._log(`Making API call to ${mergedOptions.method || "GET"} ${url}`);
+				const defaultOptions: RequestInit = {
+					headers: {
+						"Content-Type": "application/json",
+					},
+					signal: controller.signal,
+				};
 
-		try {
-			const response = await fetch(url, mergedOptions);
+				const mergedOptions = { ...defaultOptions, ...options };
 
-			if (!response.ok) {
-				const errorData: ApiErrorResponse = await response.json();
-				throw new EarnKitApiError(
-					errorData.message || `HTTP Error: ${response.status}`,
-					response.status,
-					errorData,
+				this._log(
+					`Making API call (attempt ${i + 1}/${MAX_RETRIES + 1}) to ${mergedOptions.method || "GET"} ${url}`,
 				);
-			}
 
-			return (await response.json()) as T;
-		} catch (error) {
-			if (error instanceof EarnKitApiError) {
-				throw error;
-			}
+				const response = await fetch(url, mergedOptions);
 
-			if (error instanceof Error && error.name === "AbortError") {
-				throw new EarnKitApiError(
-					`Request timed out after ${this.requestTimeoutMs}ms`,
-					408, // Request Timeout
-					error,
-				);
-			}
+				if (!response.ok) {
+					const errorData: ApiErrorResponse = await response.json();
+					throw new EarnKitApiError(
+						errorData.message || `HTTP Error: ${response.status}`,
+						response.status,
+						errorData,
+					);
+				}
 
-			// Handle network errors or other unexpected issues
-			throw new EarnKitApiError(
-				`Network request failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-				0, // Use 0 for status when it's a network error
-				error,
-			);
-		} finally {
-			clearTimeout(timeoutId);
+				clearTimeout(timeoutId);
+				return (await response.json()) as T;
+			} catch (error) {
+				lastError = error as Error;
+
+				// decide if we should retry
+				const isRetryable = this.isErrorRetryable(error);
+				if (!isRetryable || i === MAX_RETRIES) {
+					break; // exit loop to throw the error
+				}
+
+				const delay = 1000 * 2 ** i; // 1s, 2s, 4s, ...
+				this._log(`Request failed, retrying in ${delay}ms...`, error);
+				await new Promise((resolve) => setTimeout(resolve, delay));
+			}
 		}
+
+		clearTimeout(timeoutId);
+
+		// re-throw the last captured error
+		if (lastError instanceof EarnKitApiError) {
+			throw lastError;
+		}
+
+		if (lastError instanceof Error && lastError.name === "AbortError") {
+			throw new EarnKitApiError(
+				`Request timed out after ${this.requestTimeoutMs}ms`,
+				408, // Request Timeout
+				lastError,
+			);
+		}
+
+		throw new EarnKitApiError(
+			`Network request failed: ${lastError instanceof Error ? lastError.message : "Unknown error"}`,
+			0, // Use 0 for status when it's a network error
+			lastError,
+		);
+	}
+
+	private isErrorRetryable(error: unknown): boolean {
+		if (!(error instanceof EarnKitApiError)) {
+			// network errors or AbortError are retryable
+			return true;
+		}
+
+		const status = error.status;
+
+		// retry on server errors (5xx) and timeouts (408)
+		const isServerError = status >= 500 && status <= 599;
+		const isTimeout = status === 408;
+
+		return isServerError || isTimeout;
 	}
 }
 
