@@ -1,3 +1,9 @@
+import {
+	EarnKitApiError,
+	EarnKitInitializationError,
+	EarnKitInputError,
+} from "./error";
+
 export interface EarnKitConfig {
 	agentId: string;
 	baseUrl?: string;
@@ -119,8 +125,8 @@ export class EarnKit {
 			typeof config.agentId !== "string" ||
 			config.agentId.trim() === ""
 		) {
-			throw new Error(
-				"EarnKit Error: `agentId` provided to initialize() is invalid. Please provide a valid string.",
+			throw new EarnKitInitializationError(
+				"`agentId` provided to initialize() is invalid. Please provide a valid string.",
 			);
 		}
 
@@ -129,9 +135,9 @@ export class EarnKit {
 				// validate that it's a valid URL
 				new URL(config.baseUrl);
 				this.baseUrl = config.baseUrl;
-			} catch (_error) {
-				throw new Error(
-					"EarnKit Error: `baseUrl` provided to initialize() is not a valid URL.",
+			} catch (error) {
+				throw new EarnKitInitializationError(
+					"`baseUrl` provided to initialize() is not a valid URL.",
 				);
 			}
 		}
@@ -156,25 +162,18 @@ export class EarnKit {
 	 * @throws {Error} Throws an error if the request fails (e.g., insufficient funds).
 	 */
 	public async track(params: TrackParams): Promise<{ eventId: string }> {
-		// check for initialization
-		if (!this.agentId) {
-			throw new Error(
-				"EarnKit Error: SDK not initialized. Please call initialize() before using track().",
-			);
-		}
+		this.assertInitialized();
 
-		// input validation
 		if (
 			!params ||
 			typeof params.walletAddress !== "string" ||
 			!params.walletAddress.startsWith("0x")
 		) {
-			throw new Error(
-				"EarnKit Error: `walletAddress` is required and must be a valid string.",
+			throw new EarnKitInputError(
+				"`walletAddress` is required and must be a valid string.",
 			);
 		}
 
-		// send POST request to the /api/track endpoint
 		const body = {
 			agentId: this.agentId,
 			walletAddress: params.walletAddress,
@@ -182,35 +181,19 @@ export class EarnKit {
 			creditsToDeduct: params.creditsToDeduct,
 		};
 
-		try {
-			const response = await fetch(`${this.baseUrl}/api/track`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify(body),
-			});
+		const response = await this._apiCall<TrackSuccessResponse>("/track", {
+			method: "POST",
+			body: JSON.stringify(body),
+		});
 
-			if (!response.ok) {
-				const errorData: ApiErrorResponse = await response.json();
-				throw new Error(
-					errorData.message ||
-						`API Error: ${response.status} ${response.statusText}`,
-				);
-			}
-
-			const successData: TrackSuccessResponse = await response.json();
-
-			if (successData?.data?.eventId) {
-				return { eventId: successData.data.eventId };
-			} else {
-				throw new Error(
-					"EarnKit Error: Received an unexpected response format from the server.",
-				);
-			}
-		} catch (error) {
-			// re-throw any network or API errors for the developer to handle
-			throw error;
+		if (response.data?.eventId) {
+			return { eventId: response.data.eventId };
+		} else {
+			throw new EarnKitApiError(
+				"Received an unexpected response format from the server.",
+				500,
+				response,
+			);
 		}
 	}
 
@@ -231,40 +214,21 @@ export class EarnKit {
 			typeof params.eventId !== "string" ||
 			params.eventId.trim() === ""
 		) {
-			throw new Error(
-				"EarnKit Error: `eventId` is required and must be a valid string.",
+			throw new EarnKitInputError(
+				"`eventId` is required and must be a valid string.",
 			);
 		}
 
-		// send POST request to the /api/capture endpoint
 		const body = {
 			eventId: params.eventId,
 		};
 
-		try {
-			const response = await fetch(`${this.baseUrl}/api/capture`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify(body),
-			});
+		const response = await this._apiCall<CaptureSuccessResponse>("/capture", {
+			method: "POST",
+			body: JSON.stringify(body),
+		});
 
-			if (!response.ok) {
-				const errorData: ApiErrorResponse = await response.json();
-				throw new Error(
-					errorData.message ||
-						`API Error: ${response.status} ${response.statusText}`,
-				);
-			}
-
-			const successData: CaptureSuccessResponse = await response.json();
-
-			return { success: successData.success };
-		} catch (error) {
-			// re-throw any network or API errors for the developer to handle
-			throw error;
-		}
+		return { success: response.success };
 	}
 
 	/**
@@ -279,46 +243,26 @@ export class EarnKit {
 	 * @throws {Error} Throws an error if the event cannot be released.
 	 */
 	public async release(params: ReleaseParams): Promise<{ success: boolean }> {
-		// input validation
 		if (
 			!params ||
 			typeof params.eventId !== "string" ||
 			params.eventId.trim() === ""
 		) {
-			throw new Error(
-				"EarnKit Error: `eventId` is required for release() and must be a valid string.",
+			throw new EarnKitInputError(
+				"`eventId` is required for release() and must be a valid string.",
 			);
 		}
 
-		// send POST request to the /api/release endpoint
 		const body = {
 			eventId: params.eventId,
 		};
 
-		try {
-			const response = await fetch(`${this.baseUrl}/api/release`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify(body),
-			});
+		const response = await this._apiCall<ReleaseSuccessResponse>("/release", {
+			method: "POST",
+			body: JSON.stringify(body),
+		});
 
-			if (!response.ok) {
-				const errorData: ApiErrorResponse = await response.json();
-				throw new Error(
-					errorData.message ||
-						`API Error: ${response.status} ${response.statusText}`,
-				);
-			}
-
-			const successData: ReleaseSuccessResponse = await response.json();
-
-			return { success: successData.success };
-		} catch (error) {
-			// re-throw any network or API errors for the developer to handle
-			throw error;
-		}
+		return { success: response.success };
 	}
 
 	/**
@@ -326,17 +270,12 @@ export class EarnKit {
 	 * @returns {Promise<{ options: TopUpOption[] }>} A promise that resolves with the purchase options.
 	 */
 	public async getTopUpDetails(): Promise<TopUpDetailsResponse> {
-		if (!this.agentId) throw new Error("EarnKit: Not initialized.");
+		this.assertInitialized();
 
 		const url = new URL(`${this.baseUrl}/api/top-up-details`);
-		url.searchParams.set("agentId", this.agentId);
+		url.searchParams.set("agentId", this.agentId!);
 
-		const response = await fetch(url.toString());
-		if (!response.ok) {
-			const errorData = await response.json();
-			throw new Error(errorData.message || "Failed to fetch top-up details.");
-		}
-		return response.json();
+		return this._apiCall<TopUpDetailsResponse>(url.toString());
 	}
 
 	/**
@@ -347,24 +286,21 @@ export class EarnKit {
 	public async submitTopUpTransaction(
 		params: SubmitTopUpParams,
 	): Promise<SubmitTopUpResponse> {
-		if (!this.agentId) throw new Error("EarnKit: Not initialized.");
+		this.assertInitialized();
 
-		const response = await fetch(`${this.baseUrl}/api/top-up-details`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				agentId: this.agentId,
-				...params,
-			}),
-		});
+		const response = await this._apiCall<SubmitTopUpResponse>(
+			"/top-up-details",
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					agentId: this.agentId,
+					...params,
+				}),
+			},
+		);
 
-		if (!response.ok) {
-			const errorData = await response.json();
-			throw new Error(
-				errorData.message || "Failed to submit top-up transaction.",
-			);
-		}
-		return response.json();
+		return response;
 	}
 
 	/**
@@ -375,18 +311,13 @@ export class EarnKit {
 	public async getBalance(params: {
 		walletAddress: string;
 	}): Promise<UserBalance> {
-		if (!this.agentId) throw new Error("EarnKit: Not initialized.");
+		this.assertInitialized();
 
 		const url = new URL(`${this.baseUrl}/api/balance`);
-		url.searchParams.set("agentId", this.agentId);
+		url.searchParams.set("agentId", this.agentId!);
 		url.searchParams.set("walletAddress", params.walletAddress);
 
-		const response = await fetch(url.toString());
-		if (!response.ok) {
-			const errorData = await response.json();
-			throw new Error(errorData.message || "Failed to fetch balance.");
-		}
-		return response.json();
+		return this._apiCall<UserBalance>(url.toString());
 	}
 
 	/**
@@ -436,6 +367,54 @@ export class EarnKit {
 				// Don't call onTimeout here, as this was an unexpected error.
 			}
 		}, pollInterval);
+	}
+
+	private assertInitialized(): void {
+		if (!this.agentId) {
+			throw new EarnKitInitializationError(
+				"SDK not initialized. Please call initialize() before using this method.",
+			);
+		}
+	}
+
+	private async _apiCall<T>(
+		path: string,
+		options: RequestInit = {},
+	): Promise<T> {
+		const url = path.startsWith("http") ? path : `${this.baseUrl}/api${path}`;
+
+		const defaultOptions: RequestInit = {
+			headers: {
+				"Content-Type": "application/json",
+			},
+		};
+
+		const mergedOptions = { ...defaultOptions, ...options };
+
+		try {
+			const response = await fetch(url, mergedOptions);
+
+			if (!response.ok) {
+				const errorData: ApiErrorResponse = await response.json();
+				throw new EarnKitApiError(
+					errorData.message || `HTTP Error: ${response.status}`,
+					response.status,
+					errorData,
+				);
+			}
+
+			return (await response.json()) as T;
+		} catch (error) {
+			if (error instanceof EarnKitApiError) {
+				throw error;
+			}
+			// Handle network errors or other unexpected issues
+			throw new EarnKitApiError(
+				`Network request failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+				0, // Use 0 for status when it's a network error
+				error,
+			);
+		}
 	}
 }
 
