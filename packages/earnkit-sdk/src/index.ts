@@ -7,6 +7,8 @@ import {
 export interface EarnKitConfig {
 	agentId: string;
 	baseUrl?: string;
+	debug?: boolean;
+	requestTimeoutMs?: number;
 }
 
 interface TrackParams {
@@ -101,10 +103,10 @@ interface ApiErrorResponse {
 export class EarnKit {
 	private agentId: string | null = null;
 	private baseUrl: string = "http://localhost:3000";
+	private debug: boolean = false;
+	private requestTimeoutMs: number = 30_000;
 
-	constructor() {
-		console.log("EarnKit SDK instance created!");
-	}
+	constructor() {}
 
 	/**
 	 * Initializes the EarnKit SDK with a specific agent configuration.
@@ -116,6 +118,8 @@ export class EarnKit {
 	 * @param {EarnKitConfig} config - The configuration object for the SDK.
 	 * @param {string} config.agentId - The unique ID for your agent, found on the EarnKit dashboard.
 	 * @param {string} [config.baseUrl] - The base URL of the EarnKit API. Defaults to http://localhost:3000.
+	 * @param {boolean} [config.debug] - Whether to enable debug logging. Defaults to false.
+	 * @param {number} [config.requestTimeoutMs] - The request timeout in milliseconds. Defaults to 30000.
 	 * @returns {void}
 	 */
 	public initialize(config: EarnKitConfig): void {
@@ -142,10 +146,14 @@ export class EarnKit {
 			}
 		}
 
+		this.debug = config.debug ?? false;
+		this.requestTimeoutMs = config.requestTimeoutMs ?? 30_000;
+
 		// store the validated agentId in the class instance for later use by other methods
 		this.agentId = config.agentId;
-		console.log(`EarnKit SDK initialized for agent: ${this.agentId}`);
-		console.log(`Using API base URL: ${this.baseUrl}`);
+		this._log(`SDK initialized for agent: ${this.agentId}`);
+		this._log(`Using API base URL: ${this.baseUrl}`);
+		this._log(`Request timeout set to: ${this.requestTimeoutMs}ms`);
 	}
 
 	/**
@@ -340,8 +348,8 @@ export class EarnKit {
 		const intervalId = setInterval(async () => {
 			if (pollCount >= maxPolls) {
 				clearInterval(intervalId);
-				console.warn(
-					`EarnKit: Polling for balance update timed out after ${(maxPolls * pollInterval) / 1000} seconds.`,
+				this._log(
+					`Polling for balance update timed out after ${(maxPolls * pollInterval) / 1000} seconds.`,
 				);
 				if (onTimeout) onTimeout();
 				return;
@@ -358,7 +366,7 @@ export class EarnKit {
 
 				if (ethIncreased || creditsIncreased) {
 					clearInterval(intervalId);
-					console.log("EarnKit: Balance update detected!");
+					this._log("Balance update detected!");
 					onConfirmation(currentBalance);
 				}
 			} catch (error) {
@@ -377,19 +385,34 @@ export class EarnKit {
 		}
 	}
 
+	private _log(message: string, ...args: unknown[]): void {
+		if (this.debug) {
+			console.log(`[EarnKit-SDK] ${message}`, ...args);
+		}
+	}
+
 	private async _apiCall<T>(
 		path: string,
 		options: RequestInit = {},
 	): Promise<T> {
 		const url = path.startsWith("http") ? path : `${this.baseUrl}/api${path}`;
 
+		const controller = new AbortController();
+		const timeoutId = setTimeout(
+			() => controller.abort(),
+			this.requestTimeoutMs,
+		);
+
 		const defaultOptions: RequestInit = {
 			headers: {
 				"Content-Type": "application/json",
 			},
+			signal: controller.signal,
 		};
 
 		const mergedOptions = { ...defaultOptions, ...options };
+
+		this._log(`Making API call to ${mergedOptions.method || "GET"} ${url}`);
 
 		try {
 			const response = await fetch(url, mergedOptions);
@@ -408,12 +431,23 @@ export class EarnKit {
 			if (error instanceof EarnKitApiError) {
 				throw error;
 			}
+
+			if (error instanceof Error && error.name === "AbortError") {
+				throw new EarnKitApiError(
+					`Request timed out after ${this.requestTimeoutMs}ms`,
+					408, // Request Timeout
+					error,
+				);
+			}
+
 			// Handle network errors or other unexpected issues
 			throw new EarnKitApiError(
 				`Network request failed: ${error instanceof Error ? error.message : "Unknown error"}`,
 				0, // Use 0 for status when it's a network error
 				error,
 			);
+		} finally {
+			clearTimeout(timeoutId);
 		}
 	}
 }
