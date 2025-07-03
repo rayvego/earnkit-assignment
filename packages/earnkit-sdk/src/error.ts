@@ -39,11 +39,7 @@ export class EarnKitApiError extends EarnKitError {
 	public readonly status: number;
 	public readonly responseBody: unknown;
 
-	constructor(
-		message: string,
-		status: number,
-		responseBody: unknown = null,
-	) {
+	constructor(message: string, status: number, responseBody: unknown = null) {
 		super(`API Error: ${message}`);
 		this.name = "EarnKitApiError";
 		this.status = status;
