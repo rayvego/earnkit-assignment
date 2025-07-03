@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import type { CreditBasedConfig, TopUpOption } from "@/types"; // Assuming your types are defined
 import { FeeModelType, Prisma } from "@prisma/client";
+import type { CreditBasedConfig, TopUpOption } from "earnkit-sdk";
 import { ethers } from "ethers";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -62,17 +62,19 @@ export async function GET(req: NextRequest) {
 
 			// ensure topUpOptions exists and is an array before mapping
 			if (config.topUpOptions && Array.isArray(config.topUpOptions)) {
-				options = config.topUpOptions.map((opt) => {
-					const totalPrice = opt.creditAmount * opt.pricePerCredit;
-					const totalPriceString = totalPrice.toFixed(6);
+				options = config.topUpOptions.map(
+					(opt: { creditAmount: number; pricePerCredit: number }) => {
+						const totalPrice = opt.creditAmount * opt.pricePerCredit;
+						const totalPriceString = totalPrice.toFixed(6);
 
-					return {
-						label: `${opt.creditAmount.toLocaleString()} Credits`,
-						amountInEth: totalPriceString,
-						to: depositAddress,
-						value: ethers.parseEther(totalPriceString).toString(),
-					};
-				});
+						return {
+							label: `${opt.creditAmount.toLocaleString()} Credits`,
+							amountInEth: totalPriceString,
+							to: depositAddress,
+							value: ethers.parseEther(totalPriceString).toString(),
+						};
+					},
+				);
 			}
 		} else if (agent.feeModelType === FeeModelType.FREE_TIER) {
 			// free tier fee model
