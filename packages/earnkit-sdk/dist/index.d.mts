@@ -67,7 +67,6 @@ declare class EarnKit {
     private baseUrl;
     private debug;
     private requestTimeoutMs;
-    constructor();
     /**
      * Initializes the EarnKit SDK with a specific agent configuration.
      * This method must be called once before any other SDK methods are used.
@@ -82,7 +81,7 @@ declare class EarnKit {
      * @param {number} [config.requestTimeoutMs] - The request timeout in milliseconds. Defaults to 30000.
      * @returns {void}
      */
-    initialize(config: EarnKitConfig): void;
+    constructor(config: EarnKitConfig);
     /**
      * Initiates a trackable event. This should be called before running the core AI logic.
      * The developer is responsible for passing in the correct wallet address of the end user. This is done to avoid tightly coupling the SDK to a specific wallet provider.
@@ -152,11 +151,9 @@ declare class EarnKit {
      * @param {PollingParams} params - Configuration for the polling process.
      */
     pollForBalanceUpdate(params: PollingParams): void;
-    private assertInitialized;
     private _log;
     private _apiCall;
     private isErrorRetryable;
 }
-declare const earnkit: EarnKit;
 
-export { type CreditBasedConfig, EarnKit, type EarnKitConfig, type FreeTierConfig, type TopUpOption, type UserBalance, earnkit };
+export { type CreditBasedConfig, EarnKit, type EarnKitConfig, type FreeTierConfig, type TopUpOption, type UserBalance };

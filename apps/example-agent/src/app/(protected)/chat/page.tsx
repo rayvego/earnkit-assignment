@@ -2,8 +2,11 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePrivy, useSendTransaction, useWallets } from "@privy-io/react-auth";
-import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { EarnKit, type UserBalance } from "earnkit-sdk";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 
 type Message = {
@@ -12,16 +15,53 @@ type Message = {
 	id: string;
 };
 
+// SDK Instantiation - outside component to prevent re-instantiation
+const freeTierAgent = new EarnKit({
+	agentId: process.env.NEXT_PUBLIC_FREE_TIER_AGENT_ID!,
+	debug: true,
+});
+
+const creditBasedAgent = new EarnKit({
+	agentId: process.env.NEXT_PUBLIC_CREDIT_BASED_AGENT_ID!,
+	debug: true,
+});
+
 export default function ChatPage() {
 	const [messages, setMessages] = useState<Message[]>([]);
 	const [input, setInput] = useState<string>("");
 	const [loading, setLoading] = useState<boolean>(false);
+
+	// Agent state management
+	const [activeAgent, setActiveAgent] = useState<EarnKit>(freeTierAgent);
+	const [selectedModel, setSelectedModel] = useState("free-tier");
+
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 
 	// Privy hooks for test transaction functionality
 	const { user, ready, authenticated } = usePrivy();
 	const { wallets } = useWallets();
 	const { sendTransaction } = useSendTransaction();
+
+	// Balance fetching with React Query
+	const { data: balance } = useQuery<UserBalance>({
+		queryKey: ["balance", selectedModel, user?.wallet?.address],
+		queryFn: async () => {
+			if (!user?.wallet?.address) throw new Error("Wallet not connected");
+			return activeAgent.getBalance({ walletAddress: user.wallet.address });
+		},
+		enabled: !!user?.wallet?.address,
+		initialData: { eth: "0", credits: "0" },
+	});
+
+	// Agent selection handler
+	const handleAgentChange = useCallback((value: string) => {
+		setSelectedModel(value);
+		if (value === "free-tier") {
+			setActiveAgent(freeTierAgent);
+		} else {
+			setActiveAgent(creditBasedAgent);
+		}
+	}, []);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: related to scroll
 	useEffect(() => {
@@ -97,7 +137,7 @@ export default function ChatPage() {
 
 		// Find the connected wallet
 		const connectedWallet = wallets.find(
-			(wallet) => wallet.address === user.wallet!.address,
+			(wallet) => wallet.address === user.wallet?.address,
 		);
 		if (!connectedWallet) {
 			toast.error("Connected wallet not found");
@@ -139,6 +179,34 @@ export default function ChatPage() {
 
 	return (
 		<div className="flex flex-col h-[calc(100vh-80px)] w-full max-w-full overflow-hidden">
+			{/* Agent Selector and Balance Display */}
+			<div className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+				<div className="flex items-center justify-between">
+					<div className="flex items-center gap-4">
+						<Tabs value={selectedModel} onValueChange={handleAgentChange}>
+							<TabsList>
+								<TabsTrigger value="free-tier">Free Tier</TabsTrigger>
+								<TabsTrigger value="credit-based">Credit-Based</TabsTrigger>
+							</TabsList>
+						</Tabs>
+					</div>
+
+					{/* Balance Display */}
+					<div className="flex items-center gap-2 text-sm text-muted-foreground">
+						<span>Balance:</span>
+						{selectedModel === "free-tier" ? (
+							<span className="font-mono font-medium">
+								{parseFloat(balance?.eth || "0").toFixed(5)} ETH
+							</span>
+						) : (
+							<span className="font-mono font-medium">
+								{balance?.credits || "0"} Credits
+							</span>
+						)}
+					</div>
+				</div>
+			</div>
+
 			{/* Message display area */}
 			<div className="flex-grow overflow-y-auto p-4 space-y-4">
 				{messages.map((message) => (

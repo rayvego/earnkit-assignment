@@ -19,8 +19,7 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/index.ts
 var index_exports = {};
 __export(index_exports, {
-  EarnKit: () => EarnKit,
-  earnkit: () => earnkit
+  EarnKit: () => EarnKit
 });
 module.exports = __toCommonJS(index_exports);
 
@@ -57,12 +56,10 @@ var EarnKitApiError = class extends EarnKitError {
 // src/index.ts
 var MAX_RETRIES = 2;
 var EarnKit = class {
-  agentId = null;
+  agentId;
   baseUrl = "http://localhost:3000";
   debug = false;
   requestTimeoutMs = 3e4;
-  constructor() {
-  }
   /**
    * Initializes the EarnKit SDK with a specific agent configuration.
    * This method must be called once before any other SDK methods are used.
@@ -77,26 +74,26 @@ var EarnKit = class {
    * @param {number} [config.requestTimeoutMs] - The request timeout in milliseconds. Defaults to 30000.
    * @returns {void}
    */
-  initialize(config) {
+  constructor(config) {
     if (!config || typeof config.agentId !== "string" || config.agentId.trim() === "") {
       throw new EarnKitInitializationError(
-        "`agentId` provided to initialize() is invalid. Please provide a valid string."
+        "`agentId` provided to the constructor is invalid. Please provide a valid string."
       );
     }
     if (config.baseUrl) {
       try {
         new URL(config.baseUrl);
         this.baseUrl = config.baseUrl;
-      } catch (error) {
+      } catch (_error) {
         throw new EarnKitInitializationError(
-          "`baseUrl` provided to initialize() is not a valid URL."
+          "`baseUrl` provided to the constructor is not a valid URL."
         );
       }
     }
     this.debug = config.debug ?? false;
     this.requestTimeoutMs = config.requestTimeoutMs ?? 3e4;
     this.agentId = config.agentId;
-    this._log(`SDK initialized for agent: ${this.agentId}`);
+    this._log(`SDK instance created for agent: ${this.agentId}`);
     this._log(`Using API base URL: ${this.baseUrl}`);
     this._log(`Request timeout set to: ${this.requestTimeoutMs}ms`);
   }
@@ -115,7 +112,6 @@ var EarnKit = class {
    */
   async track(params) {
     var _a;
-    this.assertInitialized();
     if (!params || typeof params.walletAddress !== "string" || !params.walletAddress.startsWith("0x")) {
       throw new EarnKitInputError(
         "`walletAddress` is required and must be a valid string."
@@ -198,7 +194,6 @@ var EarnKit = class {
    * @returns {Promise<{ options: TopUpOption[] }>} A promise that resolves with the purchase options.
    */
   async getTopUpDetails() {
-    this.assertInitialized();
     const url = new URL(`${this.baseUrl}/api/top-up-details`);
     url.searchParams.set("agentId", this.agentId);
     return this._apiCall(url.toString());
@@ -209,7 +204,6 @@ var EarnKit = class {
    * @returns {Promise<any>} A promise that resolves with the backend's confirmation response.
    */
   async submitTopUpTransaction(params) {
-    this.assertInitialized();
     const response = await this._apiCall(
       "/top-up-details",
       {
@@ -229,7 +223,6 @@ var EarnKit = class {
    * @returns {Promise<UserBalance>} A promise that resolves with the user's balances.
    */
   async getBalance(params) {
-    this.assertInitialized();
     const url = new URL(`${this.baseUrl}/api/balance`);
     url.searchParams.set("agentId", this.agentId);
     url.searchParams.set("walletAddress", params.walletAddress);
@@ -276,13 +269,6 @@ var EarnKit = class {
         clearInterval(intervalId);
       }
     }, pollInterval);
-  }
-  assertInitialized() {
-    if (!this.agentId) {
-      throw new EarnKitInitializationError(
-        "SDK not initialized. Please call initialize() before using this method."
-      );
-    }
   }
   _log(message, ...args) {
     if (this.debug) {
@@ -360,9 +346,7 @@ var EarnKit = class {
     return isServerError || isTimeout;
   }
 };
-var earnkit = new EarnKit();
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
-  EarnKit,
-  earnkit
+  EarnKit
 });
