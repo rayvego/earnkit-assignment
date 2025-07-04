@@ -2,7 +2,9 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { usePrivy, useSendTransaction, useWallets } from "@privy-io/react-auth";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "react-hot-toast";
 
 type Message = {
 	role: "user" | "assistant";
@@ -15,6 +17,11 @@ export default function ChatPage() {
 	const [input, setInput] = useState<string>("");
 	const [loading, setLoading] = useState<boolean>(false);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
+
+	// Privy hooks for test transaction functionality
+	const { user, ready, authenticated } = usePrivy();
+	const { wallets } = useWallets();
+	const { sendTransaction } = useSendTransaction();
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: related to scroll
 	useEffect(() => {
@@ -77,6 +84,59 @@ export default function ChatPage() {
 		}
 	};
 
+	const handleTestTransaction = async () => {
+		// Guard clauses
+		if (!ready || !authenticated) {
+			return;
+		}
+
+		if (!user?.wallet?.address) {
+			toast.error("No wallet connected");
+			return;
+		}
+
+		// Find the connected wallet
+		const connectedWallet = wallets.find(
+			(wallet) => wallet.address === user.wallet!.address,
+		);
+		if (!connectedWallet) {
+			toast.error("Connected wallet not found");
+			return;
+		}
+
+		// Transaction logic
+		let txToast: string | undefined;
+		try {
+			txToast = toast.loading("Sending transaction...");
+
+			const transaction = {
+				to: user.wallet.address,
+				chainId: 84532, // Base Sepolia - the chainId must be a number here
+				value: "0", // The value is a string representing wei
+				data: "0x", // Optional, but good practice for value transfers
+			};
+
+			// Explicitly specify the wallet address to use
+			const { hash } = await sendTransaction(transaction, {
+				address: connectedWallet.address,
+			});
+
+			toast.success(
+				<>
+					Transaction successful!
+					<br />
+					Hash: {hash}
+				</>,
+				{ id: txToast },
+			);
+		} catch (error) {
+			console.error("Transaction error:", error);
+			toast.error("Transaction failed. See console for details.", {
+				id: txToast,
+			});
+		}
+	};
+
 	return (
 		<div className="flex flex-col h-[calc(100vh-80px)] w-full max-w-full overflow-hidden">
 			{/* Message display area */}
@@ -112,6 +172,14 @@ export default function ChatPage() {
 						disabled={loading}
 						className="flex-1 min-w-0"
 					/>
+					<Button
+						type="button"
+						onClick={handleTestTransaction}
+						disabled={!ready}
+						className="shrink-0"
+					>
+						Test Tx
+					</Button>
 					<Button
 						type="submit"
 						disabled={loading || !input.trim()}
