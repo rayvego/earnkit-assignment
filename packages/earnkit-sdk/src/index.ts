@@ -103,12 +103,10 @@ const MAX_RETRIES = 2; // 1 initial attempt + 2 retries
  * Provides methods to interact with the EarnKit monetization platform.
  */
 export class EarnKit {
-	private agentId: string | null = null;
+	private agentId: string;
 	private baseUrl: string = "http://localhost:3000";
 	private debug: boolean = false;
 	private requestTimeoutMs: number = 30_000;
-
-	constructor() {}
 
 	/**
 	 * Initializes the EarnKit SDK with a specific agent configuration.
@@ -124,7 +122,7 @@ export class EarnKit {
 	 * @param {number} [config.requestTimeoutMs] - The request timeout in milliseconds. Defaults to 30000.
 	 * @returns {void}
 	 */
-	public initialize(config: EarnKitConfig): void {
+	constructor(config: EarnKitConfig) {
 		// input validation
 		if (
 			!config ||
@@ -132,7 +130,7 @@ export class EarnKit {
 			config.agentId.trim() === ""
 		) {
 			throw new EarnKitInitializationError(
-				"`agentId` provided to initialize() is invalid. Please provide a valid string.",
+				"`agentId` provided to the constructor is invalid. Please provide a valid string.",
 			);
 		}
 
@@ -141,9 +139,9 @@ export class EarnKit {
 				// validate that it's a valid URL
 				new URL(config.baseUrl);
 				this.baseUrl = config.baseUrl;
-			} catch (error) {
+			} catch (_error) {
 				throw new EarnKitInitializationError(
-					"`baseUrl` provided to initialize() is not a valid URL.",
+					"`baseUrl` provided to the constructor is not a valid URL.",
 				);
 			}
 		}
@@ -153,7 +151,7 @@ export class EarnKit {
 
 		// store the validated agentId in the class instance for later use by other methods
 		this.agentId = config.agentId;
-		this._log(`SDK initialized for agent: ${this.agentId}`);
+		this._log(`SDK instance created for agent: ${this.agentId}`);
 		this._log(`Using API base URL: ${this.baseUrl}`);
 		this._log(`Request timeout set to: ${this.requestTimeoutMs}ms`);
 	}
@@ -172,8 +170,6 @@ export class EarnKit {
 	 * @throws {Error} Throws an error if the request fails (e.g., insufficient funds).
 	 */
 	public async track(params: TrackParams): Promise<{ eventId: string }> {
-		this.assertInitialized();
-
 		if (
 			!params ||
 			typeof params.walletAddress !== "string" ||
@@ -280,10 +276,8 @@ export class EarnKit {
 	 * @returns {Promise<{ options: TopUpOption[] }>} A promise that resolves with the purchase options.
 	 */
 	public async getTopUpDetails(): Promise<TopUpDetailsResponse> {
-		this.assertInitialized();
-
 		const url = new URL(`${this.baseUrl}/api/top-up-details`);
-		url.searchParams.set("agentId", this.agentId!);
+		url.searchParams.set("agentId", this.agentId);
 
 		return this._apiCall<TopUpDetailsResponse>(url.toString());
 	}
@@ -296,8 +290,6 @@ export class EarnKit {
 	public async submitTopUpTransaction(
 		params: SubmitTopUpParams,
 	): Promise<SubmitTopUpResponse> {
-		this.assertInitialized();
-
 		const response = await this._apiCall<SubmitTopUpResponse>(
 			"/top-up-details",
 			{
@@ -321,10 +313,8 @@ export class EarnKit {
 	public async getBalance(params: {
 		walletAddress: string;
 	}): Promise<UserBalance> {
-		this.assertInitialized();
-
 		const url = new URL(`${this.baseUrl}/api/balance`);
-		url.searchParams.set("agentId", this.agentId!);
+		url.searchParams.set("agentId", this.agentId);
 		url.searchParams.set("walletAddress", params.walletAddress);
 
 		return this._apiCall<UserBalance>(url.toString());
@@ -377,14 +367,6 @@ export class EarnKit {
 				// Don't call onTimeout here, as this was an unexpected error.
 			}
 		}, pollInterval);
-	}
-
-	private assertInitialized(): void {
-		if (!this.agentId) {
-			throw new EarnKitInitializationError(
-				"SDK not initialized. Please call initialize() before using this method.",
-			);
-		}
 	}
 
 	private _log(message: string, ...args: unknown[]): void {
@@ -489,5 +471,3 @@ export class EarnKit {
 		return isServerError || isTimeout;
 	}
 }
-
-export const earnkit = new EarnKit();
