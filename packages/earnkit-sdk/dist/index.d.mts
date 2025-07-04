@@ -1,5 +1,8 @@
 interface EarnKitConfig {
     agentId: string;
+    baseUrl?: string;
+    debug?: boolean;
+    requestTimeoutMs?: number;
 }
 interface TrackParams {
     walletAddress: string;
@@ -29,6 +32,13 @@ interface SubmitTopUpParams {
     amountInEth: string;
     creditsToTopUp?: number;
 }
+interface SubmitTopUpResponse {
+    status: string;
+    message: string;
+}
+interface TopUpDetailsResponse {
+    options: TopUpOption[];
+}
 type FreeTierConfig = {
     threshold: number;
     rate: number;
@@ -54,6 +64,9 @@ interface PollingParams {
  */
 declare class EarnKit {
     private agentId;
+    private baseUrl;
+    private debug;
+    private requestTimeoutMs;
     constructor();
     /**
      * Initializes the EarnKit SDK with a specific agent configuration.
@@ -64,6 +77,9 @@ declare class EarnKit {
      *
      * @param {EarnKitConfig} config - The configuration object for the SDK.
      * @param {string} config.agentId - The unique ID for your agent, found on the EarnKit dashboard.
+     * @param {string} [config.baseUrl] - The base URL of the EarnKit API. Defaults to http://localhost:3000.
+     * @param {boolean} [config.debug] - Whether to enable debug logging. Defaults to false.
+     * @param {number} [config.requestTimeoutMs] - The request timeout in milliseconds. Defaults to 30000.
      * @returns {void}
      */
     initialize(config: EarnKitConfig): void;
@@ -115,15 +131,13 @@ declare class EarnKit {
      * Fetches the pre-configured top-up options for the current agent.
      * @returns {Promise<{ options: TopUpOption[] }>} A promise that resolves with the purchase options.
      */
-    getTopUpDetails(): Promise<{
-        options: TopUpOption[];
-    }>;
+    getTopUpDetails(): Promise<TopUpDetailsResponse>;
     /**
      * Submits a transaction hash to the backend for monitoring.
      * @param {SubmitTopUpParams} params - The details of the submitted transaction.
      * @returns {Promise<any>} A promise that resolves with the backend's confirmation response.
      */
-    submitTopUpTransaction(params: SubmitTopUpParams): Promise<any>;
+    submitTopUpTransaction(params: SubmitTopUpParams): Promise<SubmitTopUpResponse>;
     /**
      * Fetches the current ETH and credit balance for a user.
      * @param {{ walletAddress: string }} params - The user's wallet address.
@@ -138,6 +152,10 @@ declare class EarnKit {
      * @param {PollingParams} params - Configuration for the polling process.
      */
     pollForBalanceUpdate(params: PollingParams): void;
+    private assertInitialized;
+    private _log;
+    private _apiCall;
+    private isErrorRetryable;
 }
 declare const earnkit: EarnKit;
 

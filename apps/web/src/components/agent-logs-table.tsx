@@ -19,7 +19,7 @@ export function AgentLogsTable({ logs }: { logs: any[] }) {
 				</TableRow>
 			</TableHeader>
 			<TableBody>
-				{logs && logs.map((log) => (
+				{logs?.map((log) => (
 					<TableRow key={log.id}>
 						<TableCell>{new Date(log.createdAt).toLocaleString()}</TableCell>
 						<TableCell>{log.feeDeducted || log.creditsDeducted}</TableCell>
