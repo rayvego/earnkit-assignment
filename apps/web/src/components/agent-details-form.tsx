@@ -182,6 +182,23 @@ export function AgentDetailsForm({ agent }: AgentDetailsFormProps) {
 							)}
 						/>
 
+						<div className="space-y-2">
+							<FormLabel>Agent ID</FormLabel>
+							<div className="flex items-center gap-2">
+								<Input readOnly value={agent.id} className="font-mono bg-muted" />
+								<Button
+									type="button"
+									variant="outline"
+									onClick={() => {
+										navigator.clipboard.writeText(agent.id);
+										toast.success("Agent ID copied!");
+									}}
+								>
+									Copy
+								</Button>
+							</div>
+						</div>
+
 						<FormField
 							control={form.control}
 							name="feeModelType"

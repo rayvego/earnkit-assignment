@@ -10,7 +10,7 @@ export default function LoginPage() {
 
 	const handleLogin = () => {
 		if (ready && authenticated) {
-			router.push("/dashboard");
+			router.push("/chat");
 		} else {
 			login();
 		}
@@ -33,7 +33,7 @@ export default function LoginPage() {
 					onClick={handleLogin}
 					disabled={!ready}
 				>
-					Go to Dashboard
+					Start Chat
 				</Button>
 			</div>
 		</main>
