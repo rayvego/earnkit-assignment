@@ -72,6 +72,7 @@ export async function GET(req: NextRequest) {
 							amountInEth: totalPriceString,
 							to: depositAddress,
 							value: ethers.parseEther(totalPriceString).toString(),
+							creditsToTopUp: opt.creditAmount,
 						};
 					},
 				);

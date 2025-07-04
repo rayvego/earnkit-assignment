@@ -1,5 +1,6 @@
 "use client";
 
+import TopUpDialog from "@/components/top-up-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -43,7 +44,7 @@ export default function ChatPage() {
 	const { sendTransaction } = useSendTransaction();
 
 	// Balance fetching with React Query
-	const { data: balance } = useQuery<UserBalance>({
+	const { data: balance, refetch: refetchBalance } = useQuery<UserBalance>({
 		queryKey: ["balance", selectedModel, user?.wallet?.address],
 		queryFn: async () => {
 			if (!user?.wallet?.address) throw new Error("Wallet not connected");
@@ -202,6 +203,18 @@ export default function ChatPage() {
 							<span className="font-mono font-medium">
 								{balance?.credits || "0"} Credits
 							</span>
+						)}
+						{user?.wallet?.address && (
+							<TopUpDialog
+								activeAgent={activeAgent}
+								walletAddress={user.wallet.address}
+								feeModelType={selectedModel as "free-tier" | "credit-based"}
+								onSuccess={() => refetchBalance()}
+							>
+								<Button variant="outline" size="sm">
+									Top Up
+								</Button>
+							</TopUpDialog>
 						)}
 					</div>
 				</div>
