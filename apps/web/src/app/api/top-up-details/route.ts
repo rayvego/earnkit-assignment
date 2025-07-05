@@ -167,45 +167,44 @@ export async function POST(req: Request) {
 // this function simulates our background worker
 async function simulateTransactionConfirmation(txHash: string) {
 	console.log(`[Worker] Started monitoring tx: ${txHash}`);
-	await new Promise((resolve) => setTimeout(resolve, 1000));
 	console.log(`[Worker] Transaction ${txHash} is "confirmed"!`);
 
 	try {
+		const topUpRecord = await prisma.topUpTransaction.findUnique({
+			where: { txHash },
+			select: {
+				txHash: true,
+				status: true,
+				agentId: true,
+				userWalletAddress: true,
+				amountInEth: true,
+				creditsToTopUp: true,
+			},
+		});
+
+		if (!topUpRecord || topUpRecord.status !== "PENDING") {
+			console.error(
+				`[Worker] TopUp record for ${txHash} not found or not pending.`,
+			);
+			return;
+		}
+
+		const { agentId, userWalletAddress, amountInEth, creditsToTopUp } =
+			topUpRecord;
+
+		// fetch the agent to determine the fee model
+		const agent = await prisma.agent.findUnique({
+			where: { id: agentId },
+			select: {
+				feeModelType: true,
+				feeModelConfig: true,
+			},
+		});
+		if (!agent) {
+			throw new Error(`Agent ${agentId} not found during confirmation`);
+		}
+
 		await prisma.$transaction(async (tx) => {
-			const topUpRecord = await tx.topUpTransaction.findUnique({
-				where: { txHash },
-				select: {
-					txHash: true,
-					status: true,
-					agentId: true,
-					userWalletAddress: true,
-					amountInEth: true,
-					creditsToTopUp: true,
-				},
-			});
-
-			if (!topUpRecord || topUpRecord.status !== "PENDING") {
-				console.error(
-					`[Worker] TopUp record for ${txHash} not found or not pending.`,
-				);
-				return;
-			}
-
-			const { agentId, userWalletAddress, amountInEth, creditsToTopUp } =
-				topUpRecord;
-
-			// fetch the agent to determine the fee model
-			const agent = await tx.agent.findUnique({
-				where: { id: agentId },
-				select: {
-					feeModelType: true,
-					feeModelConfig: true,
-				},
-			});
-			if (!agent) {
-				throw new Error(`Agent ${agentId} not found during confirmation`);
-			}
-
 			// perform the dynamic update and status update in parallel
 			await Promise.all([
 				tx.userBalance.upsert({
