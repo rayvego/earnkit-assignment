@@ -4,7 +4,7 @@ import TopUpDialog from "@/components/top-up-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { usePrivy, useSendTransaction, useWallets } from "@privy-io/react-auth";
+import { usePrivy } from "@privy-io/react-auth";
 import { useQuery } from "@tanstack/react-query";
 import { EarnKit, EarnKitApiError, type UserBalance } from "earnkit-sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -47,9 +47,7 @@ export default function ChatPage() {
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 
 	// Privy hooks for test transaction functionality
-	const { user, ready, authenticated } = usePrivy();
-	const { wallets } = useWallets();
-	const { sendTransaction } = useSendTransaction();
+	const { user } = usePrivy();
 
 	// Balance fetching with React Query
 	const { data: balance, refetch: refetchBalance } = useQuery<UserBalance>({
