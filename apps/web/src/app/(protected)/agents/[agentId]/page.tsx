@@ -1,9 +1,10 @@
-'use client';
+"use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { AgentDetailsForm } from "@/components/agent-details-form";
 import { AgentLogsTable } from "@/components/agent-logs-table";
 import { DeleteAgentDialog } from "@/components/delete-agent-dialog";
+import { useQuery } from "@tanstack/react-query";
+import { useParams } from "next/navigation";
 
 async function getAgent(agentId: string) {
 	const res = await fetch(`/api/agents/${agentId}`);
@@ -21,21 +22,33 @@ async function getAgentLogs(agentId: string) {
 	return res.json();
 }
 
-export default function AgentPage({ params }: { params: { agentId: string } }) {
-	const { agentId } = params;
+export default function AgentPage() {
+	const { agentId } = useParams<{ agentId: string }>();
 
-	const { data: agentData, isLoading: isAgentLoading, error: agentError } = useQuery({
-		queryKey: ['agent', agentId],
+	const {
+		data: agentData,
+		isLoading: isAgentLoading,
+		error: agentError,
+	} = useQuery({
+		queryKey: ["agent", agentId],
 		queryFn: () => getAgent(agentId),
 	});
 
-	const { data: logsData, isLoading: areLogsLoading, error: logsError } = useQuery({
-		queryKey: ['logs', agentId],
+	const {
+		data: logsData,
+		isLoading: areLogsLoading,
+		error: logsError,
+	} = useQuery({
+		queryKey: ["logs", agentId],
 		queryFn: () => getAgentLogs(agentId),
 	});
 
-	if (isAgentLoading || areLogsLoading) return <p className="text-center p-8">Loading...</p>;
-	if (agentError || logsError) return <p className="text-red-500 text-center p-8">Error loading agent data.</p>;
+	if (isAgentLoading || areLogsLoading)
+		return <p className="text-center p-8">Loading...</p>;
+	if (agentError || logsError)
+		return (
+			<p className="text-red-500 text-center p-8">Error loading agent data.</p>
+		);
 
 	return (
 		<div className="container mx-auto p-4 md:p-8">

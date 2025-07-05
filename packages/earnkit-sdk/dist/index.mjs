@@ -322,5 +322,8 @@ var EarnKit = class {
   }
 };
 export {
-  EarnKit
+  EarnKit,
+  EarnKitApiError,
+  EarnKitInitializationError,
+  EarnKitInputError
 };

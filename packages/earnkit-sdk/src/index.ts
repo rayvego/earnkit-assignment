@@ -471,3 +471,5 @@ export class EarnKit {
 		return isServerError || isTimeout;
 	}
 }
+
+export { EarnKitApiError, EarnKitInitializationError, EarnKitInputError };

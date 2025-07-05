@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import type { CreditBasedConfig, FreeTierConfig } from "@/types";
 import { FeeModelType, Prisma } from "@prisma/client";
+import type { CreditBasedConfig, FreeTierConfig } from "earnkit-sdk";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -145,7 +145,7 @@ export async function POST(req: Request) {
 		});
 
 		// return the eventId
-		return NextResponse.json({ data: eventId }, { status: 200 });
+		return NextResponse.json({ data: { eventId } }, { status: 200 });
 	} catch (error) {
 		if (error instanceof z.ZodError) {
 			return NextResponse.json(

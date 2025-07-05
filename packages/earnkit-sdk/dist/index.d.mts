@@ -1,3 +1,33 @@
+/**
+ * The base error class for all errors thrown by the EarnKit SDK.
+ * This allows developers to catch all SDK-specific errors using `catch (e) { if (e instanceof EarnKitError) { ... } }`.
+ */
+declare class EarnKitError extends Error {
+    constructor(message: string);
+}
+/**
+ * Thrown when the SDK is not properly initialized before use,
+ * or when initialization is attempted with invalid configuration.
+ */ declare class EarnKitInitializationError extends EarnKitError {
+    constructor(message: string);
+}
+/**
+ * Thrown when a method is called with invalid or missing parameters.
+ * This error indicates a problem with the developer's input to the SDK method.
+ */
+declare class EarnKitInputError extends EarnKitError {
+    constructor(message: string);
+}
+/**
+ * Thrown when an API call to the EarnKit backend fails.
+ * It contains the HTTP status code and the response body for debugging.
+ */
+declare class EarnKitApiError extends EarnKitError {
+    readonly status: number;
+    readonly responseBody: unknown;
+    constructor(message: string, status: number, responseBody?: unknown);
+}
+
 interface EarnKitConfig {
     agentId: string;
     baseUrl?: string;
@@ -156,4 +186,4 @@ declare class EarnKit {
     private isErrorRetryable;
 }
 
-export { type CreditBasedConfig, EarnKit, type EarnKitConfig, type FreeTierConfig, type TopUpOption, type UserBalance };
+export { type CreditBasedConfig, EarnKit, EarnKitApiError, type EarnKitConfig, EarnKitInitializationError, EarnKitInputError, type FreeTierConfig, type TopUpOption, type UserBalance };

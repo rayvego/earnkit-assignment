@@ -14,8 +14,20 @@ export async function GET(
 			orderBy: { createdAt: "desc" },
 		});
 
+		// Transform BigInt fields to strings for JSON serialization
+		const serializedLogs = logs.map((log) => ({
+			...log,
+			creditsDeducted: log.creditsDeducted
+				? log.creditsDeducted.toString()
+				: null,
+		}));
+
 		return NextResponse.json(
-			{ success: true, data: logs, message: "Logs fetched successfully" },
+			{
+				success: true,
+				data: serializedLogs,
+				message: "Logs fetched successfully",
+			},
 			{ status: 200 },
 		);
 	} catch (error) {

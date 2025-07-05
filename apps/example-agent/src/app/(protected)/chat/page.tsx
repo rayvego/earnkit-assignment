@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePrivy, useSendTransaction, useWallets } from "@privy-io/react-auth";
 import { useQuery } from "@tanstack/react-query";
-import { EarnKit, type UserBalance } from "earnkit-sdk";
+import { EarnKit, EarnKitApiError, type UserBalance } from "earnkit-sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 
@@ -76,48 +76,80 @@ export default function ChatPage() {
 			return;
 		}
 
+		if (!user?.wallet?.address) {
+			toast.error("Wallet not connected");
+			return;
+		}
+
+		// Store the input value before clearing it
+		const messageText = input;
+
 		const userMessage: Message = {
 			role: "user",
-			content: input,
+			content: messageText,
 			id: Date.now().toString() + "-user",
 		};
 		setMessages((prev) => [...prev, userMessage]);
 		setInput("");
 		setLoading(true);
 
+		let eventId: string | null = null;
+
 		try {
+			// Track event - hold funds
+			const trackResponse = await activeAgent.track({
+				walletAddress: user.wallet.address,
+			});
+			eventId = trackResponse.eventId;
+
+			// Call AI API
 			const response = await fetch("/api/chat", {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 				},
-				body: JSON.stringify({ message: input }),
+				body: JSON.stringify({ message: messageText }),
 			});
 
 			const data = await response.json();
 
-			if (response.ok) {
-				const assistantMessage: Message = {
-					role: "assistant",
-					content: data.text,
-					id: Date.now().toString() + "-assistant",
-				};
-				setMessages((prev) => [...prev, assistantMessage]);
-			} else {
-				console.error("API Error:", data.error);
-				const errorMessage: Message = {
-					role: "assistant",
-					content: "Sorry, I encountered an error. Please try again.",
-					id: Date.now().toString() + "-error",
-				};
-				setMessages((prev) => [...prev, errorMessage]);
+			if (!response.ok) {
+				throw new Error(data.error || "API request failed");
 			}
+
+			// Capture event - finalize charge
+			await activeAgent.capture({ eventId });
+
+			// Update UI with assistant response
+			const assistantMessage: Message = {
+				role: "assistant",
+				content: data.text,
+				id: Date.now().toString() + "-assistant",
+			};
+			setMessages((prev) => [...prev, assistantMessage]);
+
+			// Refresh balance after successful capture
+			refetchBalance();
 		} catch (error) {
-			console.error("Error:", error);
+			// Release held funds if eventId exists
+			if (eventId) {
+				await activeAgent.release({ eventId });
+				toast.success("Your charge was cancelled due to an error.");
+			}
+
+			// Handle specific error types
+			if (error instanceof EarnKitApiError) {
+				toast.error(error.message);
+			} else {
+				toast.error("An unexpected error occurred.");
+				console.error("Error:", error);
+			}
+
+			// Add error message to chat
 			const errorMessage: Message = {
 				role: "assistant",
 				content: "Sorry, I encountered an error. Please try again.",
-				id: Date.now().toString() + "-catch-error",
+				id: Date.now().toString() + "-error",
 			};
 			setMessages((prev) => [...prev, errorMessage]);
 		} finally {

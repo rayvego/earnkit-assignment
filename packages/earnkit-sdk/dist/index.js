@@ -19,7 +19,10 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/index.ts
 var index_exports = {};
 __export(index_exports, {
-  EarnKit: () => EarnKit
+  EarnKit: () => EarnKit,
+  EarnKitApiError: () => EarnKitApiError,
+  EarnKitInitializationError: () => EarnKitInitializationError,
+  EarnKitInputError: () => EarnKitInputError
 });
 module.exports = __toCommonJS(index_exports);
 
@@ -348,5 +351,8 @@ var EarnKit = class {
 };
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
-  EarnKit
+  EarnKit,
+  EarnKitApiError,
+  EarnKitInitializationError,
+  EarnKitInputError
 });
