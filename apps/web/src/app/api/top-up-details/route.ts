@@ -169,6 +169,7 @@ export async function POST(req: Request) {
 // this function simulates our background worker
 async function simulateTransactionConfirmation(txHash: string) {
 	console.log(`[Worker] Started monitoring tx: ${txHash}`);
+	await new Promise((resolve) => setTimeout(resolve, 3000));
 	console.log(`[Worker] Transaction ${txHash} is "confirmed"!`);
 
 	try {
