@@ -134,7 +134,9 @@ export async function POST(req: Request) {
 		// simulate the asynchronous confirmation process
 		// we do this AFTER creating the record, but we DON'T wait for it to finish.
 		// this is "fire-and-forget".
-		simulateTransactionConfirmation(txHash);
+		// since this is deployed on serverless compute and database, we'll need it to run right now
+		// serverless kills all background processes once this function returns
+		await simulateTransactionConfirmation(txHash);
 
 		// immediately respond to the client
 		return NextResponse.json(
