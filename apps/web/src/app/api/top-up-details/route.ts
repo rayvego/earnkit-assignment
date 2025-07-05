@@ -252,7 +252,7 @@ async function simulateTransactionConfirmation(txHash: string) {
 		);
 		await prisma.topUpTransaction.update({
 			where: { txHash },
-			data: { status: "FAILED" },
+			data: { status: "FAILED", errorMessage: JSON.stringify(error) },
 			select: {
 				txHash: true,
 			},

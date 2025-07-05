@@ -97,6 +97,8 @@ model TopUpTransaction {
   amountInEth       String // The amount we expect to see confirmed on-chain
   creditsToTopUp    BigInt? // The number of credits this transaction corresponds to
 
+  errorMessage String? // The error message if the top-up fails
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
