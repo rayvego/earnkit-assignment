@@ -22,7 +22,7 @@ const freeTierAgent = new EarnKit({
 	debug: true,
 	baseUrl:
 		process.env.NODE_ENV === "production"
-			? "https://earnkit-assignment-web.vercel.app/"
+			? "https://earnkit-assignment-web.vercel.app"
 			: "http://localhost:3000",
 });
 
@@ -31,7 +31,7 @@ const creditBasedAgent = new EarnKit({
 	debug: true,
 	baseUrl:
 		process.env.NODE_ENV === "production"
-			? "https://earnkit-assignment-web.vercel.app/"
+			? "https://earnkit-assignment-web.vercel.app"
 			: "http://localhost:3000",
 });
 
