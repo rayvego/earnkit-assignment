@@ -1,0 +1,80 @@
+import { Callout } from 'nextra/components'
+
+# Engineering Principles & Design
+
+This document outlines the key engineering principles, architectural decisions, and trade-offs made during the development of EarnKit. The primary goal was to build a robust, developer-friendly, and reliable monetization toolkit, even within the constraints of a take-home assignment.
+
+---
+
+## Part 1: Core SDK Philosophy & Best Practices
+
+We started with a clear philosophy for the `earnkit-sdk`: it should be lightweight, flexible, and completely focused on providing a best-in-class developer experience (DX).
+
+### A Focus on Developer Experience (DX)
+
+- **Lightweight and Dependency-Free:** The SDK was intentionally built with zero external production dependencies. This ensures it's lean, easy to integrate, and won't bloat a developer's application or introduce version conflicts.
+
+- **Decoupled from Third Parties:** The SDK is wallet-agnostic. Instead of bundling a specific wallet connector like Privy, it requires the developer to pass in the `walletAddress`. This is a crucial design choice that grants developers the freedom to use any wallet connection library they prefer (e.g., Privy, RainbowKit, Web3Modal), maximizing compatibility.
+
+- **Clear & Actionable Errors:** The SDK features a set of custom error classes (`EarnKitInitializationError`, `EarnKitInputError`, `EarnKitApiError`). This allows developers to `catch` specific error types and build robust, fine-grained error-handling logic, rather than relying on generic error messages.
+
+- **Configurable & Transparent:**
+    - To avoid cluttering console logs, all internal SDK logging is disabled by default and can be enabled via a `debug: true` flag in the constructor.
+    - To handle varying network conditions, the API request timeout is configurable (`requestTimeoutMs`), preventing the SDK from hanging indefinitely and making the developer's application more resilient.
+
+### Adherence to Software Design Principles
+
+- **Single Responsibility Principle (SRP):** The SDK's sole responsibility is to act as a secure and efficient messenger between the developer's application and the EarnKit backend. **No business logic resides in the SDK.** All critical logic (fee calculations, balance updates, usage tracking) is handled by the backend API. This is paramount, as it allows for pricing models and features to be updated without requiring developers to update the SDK package version.
+
+- **Support for Multiple Instances:** The SDK was explicitly refactored from a singleton into a standard class. This allows developers to instantiate multiple `EarnKit` clients in a single application, each configured for a different agent. This is essential for applications that need to manage multiple distinct AI agents simultaneously.
+
+- **Clean Code Practices:** Inspired by principles from Robert C. Martin's "Clean Code," an emphasis was placed on writing readable, self-documenting code with clear method names and consistent structure to ensure long-term maintainability.
+
+---
+
+## Part 2: Architectural Deep Dive
+
+These core principles directly informed the key architectural decisions of the platform.
+
+### 1. The Hybrid Billing Model: On-Chain vs. Off-Chain
+
+- **The Challenge:** How do you process potentially high-frequency, low-value transactions for each AI interaction without forcing users to pay gas fees every single time?
+- **The Decision:** We implemented a hybrid model.
+    - **Off-Chain (Micro-transactions):** Per-prompt fees and credit deductions are handled as atomic updates in our own database.
+    - **On-Chain (Macro-transactions):** User top-ups are standard blockchain transactions (e.g., sending ETH on Base Sepolia) directly to the developer's wallet.
+- **The Trade-off:** This provides an optimal UX with instant, gas-free interactions. The trade-off is that the off-chain balance relies on a centralized, trusted system. For a production environment, this database would require rigorous security, auditing, and disaster recovery protocols.
+
+### 2. The `track/capture/release` Transaction Lifecycle
+
+- **The Challenge:** How do you guarantee a user is never charged for a failed AI call?
+- **The Decision:** We implemented a two-step transaction flow. `track()` is called before the AI operation to place a temporary hold on the user's balance. `capture()` is called only after a successful AI response to finalize the charge. If the AI call fails, `release()` is called to cancel the hold and refund the user.
+- **The Trade-off:** This pattern adds a minor complexity to the SDK integration for the developer (they must remember to call `capture` or `release`). However, this is a necessary trade-off for achieving a fair and reliable billing system, which is fundamental to user trust.
+
+### 3. Asynchronous Top-Up Confirmation
+
+- **The Challenge:** On-chain transactions can take time to confirm. How do we avoid forcing the user to wait on a loading screen?
+- **The Decision:** The top-up flow is fully asynchronous. The client submits the `txHash` to the backend and the UI responds immediately. A separate, simulated background process on the server monitors the blockchain for confirmation and updates the user's balance once verified.
+- **The Trade-off:** This creates a seamless, non-blocking user experience. The architectural cost is the need for a background worker system. In this assignment, this is simulated with `setTimeout`, but a production system would use a robust job queue (e.g., BullMQ, Celery) for this task.
+
+### 4. Idempotency to Prevent Double-Charging
+
+- **The Challenge:** What happens if a developer's request to `track` a charge times out on the network, and they retry? They might accidentally charge the user twice for the same operation.
+- **The Decision:** The `track` endpoint accepts an optional `idempotencyKey`. If a developer provides this unique key (e.g., a UUID generated for the operation), our backend can recognize and discard any duplicate requests, guaranteeing that the user is only charged once.
+
+---
+
+## Part 3: Production Considerations & Future Improvements
+
+Given the time constraints, some choices were made that would be expanded upon in a production environment.
+
+### Hardening Security
+
+- **SDK Authentication:** Currently, the SDK authenticates with just a public `agentId`. In a production system, this is insufficient. The ideal approach would be a **dual-SDK model**:
+    - **Client-Side SDK (current):** For safe, read-only operations like fetching top-up options.
+    - **Server-Side SDK:** A separate package for a developer's backend, authenticated with a secret key. Critical operations like `track`, `capture`, and `release` would be restricted to this server-to-server communication channel.
+- **CORS Policy:** The backend would implement a strict CORS policy to only allow requests from whitelisted domains associated with a developer's account.
+
+### Platform Business Model
+
+- **Direct vs. Escrow:** The current model has users pay the developer's wallet directly. This is simple but limits business model flexibility.
+- **Future Vision:** A more scalable model would involve a central, secure platform wallet that acts as an escrow. Funds would be paid out to developers on a schedule (e.g., monthly), allowing EarnKit to take a small platform fee (e.g., 5%) as its revenue model, similar to Stripe. This would require a more complex and highly secure payout and accounting system. 

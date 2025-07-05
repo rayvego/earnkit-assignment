@@ -1,0 +1,101 @@
+# Local Setup
+
+This guide will walk you through setting up the EarnKit monorepo on your local machine. The project is managed using `pnpm` workspaces.
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+- [Node.js](https://nodejs.org/en) (v18 or later recommended)
+- [pnpm](https://pnpm.io/installation)
+
+## 1. Clone the Repository
+
+First, clone the project repository from GitHub to your local machine.
+
+```bash
+git clone https://github.com/rayvego/earnkit-assignment.git
+cd earnkit-assignment
+```
+
+## 2. Install Dependencies
+
+Next, install all the necessary dependencies for the entire monorepo. `pnpm` will automatically handle linking the workspaces (`earnkit-sdk`, `web`, `example-agent`).
+
+```bash
+pnpm install
+```
+
+## 3. Set Up Environment Variables
+
+The project requires several environment variables to run correctly. You will need to create a `.env.local` file in both the `apps/web` and `apps/example-agent` directories.
+
+### a. EarnKit Dashboard App (`apps/web`)
+
+Create a file at `apps/web/.env.local` and add the following variables. You will need a Privy App ID and a PostgreSQL database connection string.
+
+```bash
+# Get these from your Privy dashboard
+NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id
+NEXT_PUBLIC_PRIVY_CLIENT_ID=your_privy_app_client_id
+PRIVY_SECRET=your_privy_secret
+PRIVY_VERIFICATION_KEY=your_privy_verification_key
+
+# Connection string for your PostgreSQL database
+# Example: postgresql://user:password@host:port/database
+DATABASE_URL=your_database_url
+```
+
+### b. Example Agent App (`apps/example-agent`)
+
+Create a file at `apps/example-agent/.env.local` and add the following. You will need to create two agents in your EarnKit developer dashboard to get their IDs.
+
+```bash
+# Get this from your Privy dashboard (can be the same as above)
+NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id
+NEXT_PUBLIC_PRIVY_CLIENT_ID=your_privy_app_client_id
+PRIVY_SECRET=your_privy_secret
+PRIVY_VERIFICATION_KEY=your_privy_verification_key
+
+# Get this from the Gemini AI dashboard
+GEMINI_API_KEY=your_gemini_api_key
+
+# Create two agents in the EarnKit dashboard and get their IDs
+NEXT_PUBLIC_FREE_TIER_AGENT_ID=agent_id_for_free_tier_model
+NEXT_PUBLIC_CREDIT_BASED_AGENT_ID=agent_id_for_credit_based_model
+```
+
+## 4. Set Up the Database
+
+The backend service requires a PostgreSQL database. Once you have your `DATABASE_URL` set, you need to run the Prisma migrations to set up the schema.
+
+Execute the following command from the root of the project:
+
+```bash
+pnpx prisma migrate dev --name init
+```
+
+This command will apply all necessary migrations and ensure your database schema is up to date.
+
+## 5. Run the Applications
+
+You can run both the main web app and the example agent app concurrently.
+
+### Run the EarnKit Dashboard (`web`):
+
+```bash
+pnpm --filter web dev
+```
+
+The application will be available at `http://localhost:3000`.
+
+### Run the Example Agent (`example-agent`):
+
+```bash
+pnpm --filter example-agent dev
+```
+
+The example agent will be available at `http://localhost:3001`.
+
+---
+
+You are now fully set up to run and test the EarnKit platform locally!

@@ -1,0 +1,69 @@
+import { Callout } from 'nextra/components'
+
+# Testing the Fee Models
+
+The `example-agent` application is designed to provide a hands-on demonstration of the two primary monetization models supported by EarnKit. This guide will walk you through testing both scenarios.
+
+## Prerequisites
+
+Before you begin, please ensure you have:
+1.  Completed the [Local Setup](./setup-repository) and have both the `web` and `example-agent` applications running.
+2.  A browser wallet like MetaMask installed and funded with Base Sepolia ETH.
+3.  Created two agents in your EarnKit dashboard and configured the `.env.local` file in `apps/example-agent` with their respective IDs.
+
+<Callout type="info">
+For the best testing experience, configure your **Free Tier** agent with a low `threshold` (e.g., 3) and your **Credit-Based** agent with a `creditsPerPrompt` of 10.
+</Callout>
+
+---
+
+## 1. Testing the Free Tier Model
+
+This model allows users a certain number of free interactions before requiring payment.
+
+### Step 1: Select the Free Tier Agent
+In the example agent UI, click on the **"Free Tier"** tab. You should see the balance display switch to show an ETH value.
+
+### Step 2: Use Your Free Prompts
+Your initial balance will be 0 ETH. Send a few messages to the chat agent. These interactions are free and your balance will remain at 0. This demonstrates the `threshold` feature.
+
+### Step 3: Exceed the Threshold
+Once you send more messages than the configured free `threshold`, the `track()` method will fail. The application will show an "Insufficient funds" error, as you have no ETH balance to pay for the prompt.
+
+
+### Step 4: Top Up Your Balance
+Click the **"Top Up"** button. A dialog will appear allowing you to add funds to your agent-specific balance. Select an amount and confirm the transaction in your wallet.
+
+
+### Step 5: Verify the Charge
+After the transaction is confirmed and the poller updates your balance, send another message. This time, the interaction will be successful. You will see your ETH balance decrease by the configured `rate`, confirming that the per-prompt fee is now active.
+
+
+---
+
+## 2. Testing the Credit-Based Model
+
+This model deducts a pre-defined number of credits for each interaction.
+
+### Step 1: Select the Credit-Based Agent
+Switch to the **"Credit-Based"** tab. The balance display will now show your credit total.
+
+
+### Step 2: Attempt to Use Without Credits
+With 0 credits, send a message. The request will fail immediately with an "Insufficient credits" error.
+
+### Step 3: Purchase Credits
+Click the **"Top Up"** button. The dialog will now show credit packages available for purchase (e.g., "100 Credits for 0.01 ETH"). Select a package and confirm the transaction in your wallet.
+
+
+### Step 4: Verify Credit Balance
+Once the on-chain transaction is confirmed, the poller will detect the change and your UI will update to show your new credit balance.
+
+
+### Step 5: Verify Credit Deduction
+Send a message again. The request will now succeed. Your credit balance will decrease by the `creditsPerPrompt` amount (e.g., from 100 to 90), confirming the credit deduction system is working correctly.
+
+
+<Callout type="success">
+You have now successfully tested both monetization models!
+</Callout> 
