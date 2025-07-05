@@ -1,0 +1,156 @@
+# Assignment
+
+This project demonstrates a complete implementation featuring smart wallet integration, multiple fee models, comprehensive TypeScript SDK and backend system, developer dashboard and an example AI agent.
+
+### Core Features
+
+- **Simple Integration**: Add monetization with `track()`, `capture()`, and `release()` methods
+- **Flexible Fee Models**: Support for free tiers and credit-based systems
+- **Reliable Billing**: Provisional charging with capture/release pattern prevents failed transactions
+- **Smart Wallet Integration**: Seamless payment processing via Privy wallets on Base Sepolia
+- **Real-time Tracking**: Monitor usage, balances, and transactions in real-time
+- **Developer Dashboard**: Comprehensive management interface for agents and analytics
+
+## Demonstration
+
+<div className="my-8 px-4">
+	<div className="relative w-full aspect-video max-w-4xl mx-auto">
+		<iframe
+			className="absolute inset-0 w-full h-full rounded-lg"
+			src="https://www.youtube.com/embed/n9J55u1sCag"
+			title="YouTube Video"
+			frameBorder="0"
+			allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+			allowFullScreen
+		></iframe>
+	</div>
+</div>
+
+## Architecture Overview
+
+### Working and Flow
+
+![EarnKit Architecture Flow](/ea-flow.svg)
+
+This monorepo showcases EarnKit through three integrated applications:
+
+### 1. EarnKit SDK (`packages/earnkit-sdk`)
+
+A lightweight TypeScript SDK providing the following **key methods:**
+
+- `track()` - Provisionally charge for usage (checks funds, creates pending event)
+- `capture()` - Finalize charge after successful AI operation
+- `release()` - Refund provisional charge if operation fails
+- `getBalance()` - Retrieve user's ETH and credit balances
+- `getTopUpDetails()` - Get available purchase options
+- `submitTopUpTransaction()` - Process credit purchases
+
+### 2. Developer Dashboard (`apps/web`)
+
+A Next.js application featuring:
+
+- **Agent Management**: Create and configure agents with different fee models
+- **Real-time Analytics**: View usage statistics, revenue, and user activity
+- **Transaction Logs**: Monitor all events with timestamps, fees, wallet addresses, and errors
+- **API Integration**: Secure endpoints for all SDK operations
+
+**Database Models:**
+- **Developers**: Authenticated via Privy with deposit wallet addresses
+- **Agents**: Configurable fee models and pricing strategies
+- **User Balances**: Per-agent ETH and credit balances for each wallet
+- **Usage Events**: Detailed logging of all billable events with status tracking
+- **Top-up Transactions**: Mock blockchain transaction monitoring and confirmation
+
+### 3. Example Agent (`apps/example-agent`)
+
+A live demonstration chat application showcasing both fee models:
+
+- **Gemini AI Integration**: Real AI responses powered by Google's Gemini API
+- **Live Billing**: Actual SDK integration with real-time balance updates
+- **Two Fee Models**: Switch between free tier and credit-based pricing
+- **Wallet Connection**: Privy integration for seamless user experience
+
+## Fee Models Implemented
+
+### Free Tier Model
+
+Perfect for freemium AI applications:
+
+```json
+{
+  "threshold": 50,
+  "rate": "0.0001"
+}
+```
+
+- **Free Usage**: First 50 prompts per wallet are free
+- **Pay-per-use**: 0.0001 ETH per prompt after threshold
+- **Automatic Billing**: Seamless transition from free to paid usage
+- **ETH Balance**: Direct ETH deduction from user wallets
+
+### Credit-Based Model
+
+Ideal for predictable, prepaid usage:
+
+```json
+{
+  "creditsPerPrompt": 10,
+  "topUpOptions": [
+    { "creditAmount": 100, "pricePerCredit": 0.001 },
+    { "creditAmount": 500, "pricePerCredit": 0.0008 },
+    { "creditAmount": 1000, "pricePerCredit": 0.0006 }
+  ]
+}
+```
+
+- **Credit System**: Configurable credits per AI operation
+- **Bulk Purchasing**: Multiple top-up tiers with volume discounts
+- **Flexible Consumption**: Variable credit costs per operation type
+- **Top-up Flow**: Integrated wallet transactions for credit purchases
+
+## Smart Wallet & Blockchain Integration
+
+Built on **Base Sepolia** testnet with **Privy** for user-friendly wallet management:
+
+### Transaction Flow
+1. **Wallet Connection**: Users connect via Privy (supports embedded wallets)
+2. **Provisional Charging**: `track()` checks balances and creates pending events
+3. **AI Processing**: Your application logic runs
+4. **Finalization**: `capture()` confirms charge or `release()` refunds
+
+### Top-up Process
+1. **Get Options**: SDK fetches available purchase tiers
+2. **Submit Transaction**: User sends ETH to developer's deposit address
+3. **Monitoring**: Backend simulates blockchain confirmation (3-second delay)
+4. **Credit Update**: User balances updated automatically
+5. **Real-time Polling**: SDK polls for balance changes
+
+## Technical Implementation
+
+### API Endpoints
+
+- **`POST /api/track`** - Create provisional usage event
+- **`POST /api/capture`** - Finalize pending event charges
+- **`POST /api/release`** - Cancel and refund pending events
+- **`GET /api/balance`** - Retrieve user ETH and credit balances
+- **`GET /api/top-up-details`** - Get purchase options for agent
+- **`POST /api/top-up-details`** - Submit top-up transaction hash
+- **`GET /api/agents`** - List developer's agents
+- **`POST /api/agents`** - Create new agent configuration
+- **`GET /api/agents/[agentId]`** - Get agent configuration
+- **`PUT /api/agents/[agentId]`** - Update agent configuration
+- **`DELETE /api/agents/[agentId]`** - Delete agent
+- **`GET /api/agents/[agentId]/logs`** - Get all logs for an agent
+
+### Database Architecture
+
+![EarnKit Database Architecture](/ea-db.svg)
+
+### Technology Stack
+
+- **Frontend**: Next.js 15, TypeScript, Tailwind CSS, shadcn/ui
+- **SDK**: TypeScript with NO external dependencies
+- **Backend**: PostgreSQL with Prisma ORM
+- **Authentication**: Privy for wallet connections and developer auth
+- **Blockchain**: Base Sepolia testnet for testing
+- **AI Integration**: Google Gemini API for chat functionality
