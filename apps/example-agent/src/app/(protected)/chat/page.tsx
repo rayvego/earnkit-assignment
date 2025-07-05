@@ -239,7 +239,6 @@ export default function ChatPage() {
 						{user?.wallet?.address && (
 							<TopUpDialog
 								activeAgent={activeAgent}
-								walletAddress={user.wallet.address}
 								feeModelType={selectedModel as "free-tier" | "credit-based"}
 								onSuccess={() => refetchBalance()}
 							>

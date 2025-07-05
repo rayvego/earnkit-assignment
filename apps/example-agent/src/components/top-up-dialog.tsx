@@ -16,7 +16,6 @@ import { toast } from "react-hot-toast";
 
 interface TopUpDialogProps {
 	activeAgent: EarnKit;
-	walletAddress: string;
 	feeModelType: "free-tier" | "credit-based";
 	onSuccess: (newBalance: UserBalance) => void;
 	children: React.ReactNode;
@@ -24,7 +23,6 @@ interface TopUpDialogProps {
 
 export default function TopUpDialog({
 	activeAgent,
-	walletAddress,
 	feeModelType,
 	onSuccess,
 	children,
