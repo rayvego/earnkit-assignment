@@ -1,5 +1,6 @@
 import { verifyPrivyToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { type NextRequest, NextResponse } from "next/server";
 
 // get a single agent for a developer
@@ -20,25 +21,21 @@ export async function GET(
 		const { agentId } = await params;
 
 		const agent = await prisma.agent.findUnique({
-			where: { id: agentId },
+			where: { id: agentId, developer: { privyId } }, // ensure the agent belongs to the authenticated developer
+			select: {
+				id: true,
+				name: true,
+				feeModelType: true,
+				feeModelConfig: true,
+				createdAt: true,
+				updatedAt: true,
+			},
 		});
 
 		if (!agent) {
 			return NextResponse.json(
-				{ success: false, message: "Agent not found" },
+				{ success: false, message: "Agent not found or not authorized" },
 				{ status: 404 },
-			);
-		}
-
-		// ensure the agent belongs to the authenticated developer
-		const developer = await prisma.developer.findUnique({
-			where: { privyId },
-		});
-
-		if (!developer || agent.developerId !== developer.id) {
-			return NextResponse.json(
-				{ success: false, message: "Forbidden" },
-				{ status: 403 },
 			);
 		}
 
@@ -47,6 +44,18 @@ export async function GET(
 			{ status: 200 },
 		);
 	} catch (error) {
+		if (
+			error instanceof Prisma.PrismaClientKnownRequestError &&
+			error.code === "P2025"
+		) {
+			return NextResponse.json(
+				{
+					message: "Agent not found or not authorized.",
+				},
+				{ status: 404 },
+			);
+		}
+
 		console.error("Error fetching agent: ", error);
 		return NextResponse.json(
 			{ success: false, message: "Internal server error" },
@@ -72,31 +81,44 @@ export async function PUT(
 
 		const { agentId } = await params;
 
-		const developer = await prisma.developer.findUnique({
-			where: {
-				privyId,
-			},
-		});
-
-		if (!developer) {
-			return NextResponse.json(
-				{ success: false, message: "Developer not found" },
-				{ status: 404 },
-			);
-		}
-
 		const { name, feeModelType, feeModelConfig } = await request.json();
 
 		const agent = await prisma.agent.update({
-			where: { id: agentId },
+			where: { id: agentId, developer: { privyId } }, // ensure the agent belongs to the authenticated developer
 			data: { name, feeModelType, feeModelConfig },
+			select: {
+				id: true,
+				name: true,
+				feeModelType: true,
+				feeModelConfig: true,
+				createdAt: true,
+				updatedAt: true,
+			},
 		});
+
+		if (!agent) {
+			return NextResponse.json(
+				{ success: false, message: "Agent not found or not authorized" },
+				{ status: 404 },
+			);
+		}
 
 		return NextResponse.json(
 			{ success: true, data: agent, message: "Agent updated successfully" },
 			{ status: 200 },
 		);
 	} catch (error) {
+		if (
+			error instanceof Prisma.PrismaClientKnownRequestError &&
+			error.code === "P2025"
+		) {
+			return NextResponse.json(
+				{
+					message: "Agent not found or not authorized.",
+				},
+				{ status: 404 },
+			);
+		}
 		console.error("Error updating agent: ", error);
 		return NextResponse.json(
 			{ success: false, message: "Internal server error" },
@@ -122,21 +144,22 @@ export async function DELETE(
 
 		const { agentId } = await params;
 
-		const developer = await prisma.developer.findUnique({
-			where: {
-				privyId,
+		const agent = await prisma.agent.findUnique({
+			where: { id: agentId, developer: { privyId } }, // ensure the agent belongs to the authenticated developer
+			select: {
+				id: true,
 			},
 		});
 
-		if (!developer) {
+		if (!agent) {
 			return NextResponse.json(
-				{ success: false, message: "Developer not found" },
+				{ success: false, message: "Agent not found or not authorized" },
 				{ status: 404 },
 			);
 		}
 
 		// delete in a transaction for atomicity
-		const agent = await prisma.$transaction(async (tx) => {
+		const deletedAgent = await prisma.$transaction(async (tx) => {
 			await tx.userBalance.deleteMany({
 				where: {
 					agentId,
@@ -149,18 +172,40 @@ export async function DELETE(
 				},
 			});
 
-			const deletedAgent = await tx.agent.delete({
+			return await tx.agent.delete({
 				where: { id: agentId },
+				select: {
+					id: true,
+					name: true,
+					feeModelType: true,
+					feeModelConfig: true,
+					createdAt: true,
+					updatedAt: true,
+				},
 			});
-
-			return deletedAgent;
 		});
 
 		return NextResponse.json(
-			{ success: true, data: agent, message: "Agent deleted successfully" },
+			{
+				success: true,
+				data: deletedAgent,
+				message: "Agent deleted successfully",
+			},
 			{ status: 200 },
 		);
 	} catch (error) {
+		if (
+			error instanceof Prisma.PrismaClientKnownRequestError &&
+			error.code === "P2025"
+		) {
+			return NextResponse.json(
+				{
+					message: "Agent not found or not authorized.",
+				},
+				{ status: 404 },
+			);
+		}
+
 		console.error("Error deleting agent: ", error);
 		return NextResponse.json(
 			{ success: false, message: "Internal server error" },

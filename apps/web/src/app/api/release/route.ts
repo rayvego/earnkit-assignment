@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -6,6 +7,7 @@ const releaseRequestBodySchema = z.object({
 	eventId: z.string().cuid(),
 });
 
+// release a pending event
 export async function POST(req: Request) {
 	try {
 		const body = await req.json();
@@ -13,7 +15,7 @@ export async function POST(req: Request) {
 
 		if (!validation.success) {
 			return NextResponse.json(
-				{ message: "Invalid request body", errors: validation.error.issues },
+				{ message: "Invalid request body", errors: validation.error.errors },
 				{ status: 400 },
 			);
 		}
@@ -26,6 +28,13 @@ export async function POST(req: Request) {
 				where: {
 					id: eventId,
 					status: "PENDING",
+				},
+				select: {
+					id: true,
+					feeDeducted: true,
+					creditsDeducted: true,
+					userWalletAddress: true,
+					agentId: true,
 				},
 			});
 
@@ -56,6 +65,10 @@ export async function POST(req: Request) {
 							? { increment: creditsDeducted }
 							: undefined,
 					},
+					select: {
+						userWalletAddress: true,
+						agentId: true,
+					},
 				});
 			}
 
@@ -77,9 +90,19 @@ export async function POST(req: Request) {
 
 		return NextResponse.json({ success: true, eventId: releasedEvent.id });
 	} catch (error) {
+		if (
+			error instanceof Prisma.PrismaClientKnownRequestError &&
+			error.code === "P2025"
+		) {
+			return NextResponse.json(
+				{ message: "Event not found or not in a releasable state." },
+				{ status: 404 },
+			);
+		}
+
 		if (error instanceof z.ZodError) {
 			return NextResponse.json(
-				{ message: "Invalid request body", errors: error.issues },
+				{ message: "Invalid request body", errors: error.errors },
 				{ status: 400 },
 			);
 		}

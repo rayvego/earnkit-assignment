@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 // get all logs for an agent
 export async function GET(
-	request: NextRequest,
+	_request: NextRequest,
 	{ params }: { params: Promise<{ agentId: string }> },
 ) {
 	try {
@@ -12,6 +12,17 @@ export async function GET(
 		const logs = await prisma.usageEvent.findMany({
 			where: { agentId },
 			orderBy: { createdAt: "desc" },
+			select: {
+				id: true,
+				agentId: true,
+				userWalletAddress: true,
+				status: true,
+				feeDeducted: true,
+				creditsDeducted: true,
+				idempotencyKey: true,
+				createdAt: true,
+				updatedAt: true,
+			},
 		});
 
 		// Transform BigInt fields to strings for JSON serialization

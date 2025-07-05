@@ -16,6 +16,10 @@ We started with a clear philosophy for the `earnkit-sdk`: it should be lightweig
 
 - **Decoupled from Third Parties:** The SDK is wallet-agnostic. Instead of bundling a specific wallet connector like Privy, it requires the developer to pass in the `walletAddress`. This is a crucial design choice that grants developers the freedom to use any wallet connection library they prefer (e.g., Privy, RainbowKit, Web3Modal), maximizing compatibility.
 
+- No redeployment required
+
+- Proper and optimized database queries - transactions, select, promise.all
+
 - **Clear & Actionable Errors:** The SDK features a set of custom error classes (`EarnKitInitializationError`, `EarnKitInputError`, `EarnKitApiError`). This allows developers to `catch` specific error types and build robust, fine-grained error-handling logic, rather than relying on generic error messages.
 
 - **Configurable & Transparent:**

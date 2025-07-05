@@ -7,6 +7,7 @@ const captureRequestBodySchema = z.object({
 	eventId: z.string().cuid(),
 });
 
+// capture a pending event
 export async function POST(req: Request) {
 	try {
 		const body = await req.json();
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
 			return NextResponse.json(
 				{
 					message: "Invalid request body",
-					errors: validation.error.issues,
+					errors: validation.error.errors,
 				},
 				{ status: 400 },
 			);

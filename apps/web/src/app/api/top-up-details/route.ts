@@ -17,6 +17,7 @@ const submitTopUpSchema = z.object({
 	creditsToTopUp: z.number().int().positive().optional(),
 });
 
+// get top-up details for an agent
 export async function GET(req: NextRequest) {
 	try {
 		const { searchParams } = new URL(req.url);
@@ -36,7 +37,10 @@ export async function GET(req: NextRequest) {
 		// fetch the agent and its related developer's deposit address
 		const agent = await prisma.agent.findUnique({
 			where: { id: agentId },
-			include: {
+			select: {
+				id: true,
+				feeModelType: true,
+				feeModelConfig: true,
 				developer: {
 					select: {
 						walletAddress: true,
@@ -79,7 +83,7 @@ export async function GET(req: NextRequest) {
 			}
 		} else if (agent.feeModelType === FeeModelType.FREE_TIER) {
 			// free tier fee model
-			const predefinedAmounts = ["0.005", "0.01", "0.025"];
+			const predefinedAmounts = ["0.005", "0.01", "0.025"]; // hardcoded for now
 
 			options = predefinedAmounts.map((amount) => {
 				return {
@@ -108,6 +112,7 @@ export async function GET(req: NextRequest) {
 	}
 }
 
+// submit a top-up transaction
 export async function POST(req: Request) {
 	try {
 		const body = await req.json();
@@ -115,7 +120,7 @@ export async function POST(req: Request) {
 
 		if (!validation.success) {
 			return NextResponse.json(
-				{ message: "Invalid request body", errors: validation.error.issues },
+				{ message: "Invalid request body", errors: validation.error.errors },
 				{ status: 400 },
 			);
 		}
@@ -180,6 +185,14 @@ async function simulateTransactionConfirmation(txHash: string) {
 		await prisma.$transaction(async (tx) => {
 			const topUpRecord = await tx.topUpTransaction.findUnique({
 				where: { txHash },
+				select: {
+					txHash: true,
+					status: true,
+					agentId: true,
+					userWalletAddress: true,
+					amountInEth: true,
+					creditsToTopUp: true,
+				},
 			});
 
 			if (!topUpRecord || topUpRecord.status !== "PENDING") {
@@ -193,9 +206,16 @@ async function simulateTransactionConfirmation(txHash: string) {
 				topUpRecord;
 
 			// fetch the agent to determine the fee model
-			const agent = await tx.agent.findUnique({ where: { id: agentId } });
-			if (!agent)
+			const agent = await tx.agent.findUnique({
+				where: { id: agentId },
+				select: {
+					feeModelType: true,
+					feeModelConfig: true,
+				},
+			});
+			if (!agent) {
 				throw new Error(`Agent ${agentId} not found during confirmation`);
+			}
 
 			// perform the dynamic update
 			await tx.userBalance.upsert({
@@ -204,21 +224,21 @@ async function simulateTransactionConfirmation(txHash: string) {
 					userWalletAddress,
 					agentId,
 					ethBalance:
-						agent.feeModelType === "FREE_TIER"
+						agent.feeModelType === FeeModelType.FREE_TIER
 							? new Prisma.Decimal(amountInEth)
 							: 0,
 					creditBalance:
-						agent.feeModelType === "CREDIT_BASED" && creditsToTopUp
+						agent.feeModelType === FeeModelType.CREDIT_BASED && creditsToTopUp
 							? creditsToTopUp
 							: BigInt(0),
 				},
 				update: {
 					ethBalance:
-						agent.feeModelType === "FREE_TIER"
+						agent.feeModelType === FeeModelType.FREE_TIER
 							? { increment: new Prisma.Decimal(amountInEth) }
 							: undefined,
 					creditBalance:
-						agent.feeModelType === "CREDIT_BASED" && creditsToTopUp
+						agent.feeModelType === FeeModelType.CREDIT_BASED && creditsToTopUp
 							? { increment: creditsToTopUp }
 							: undefined,
 				},
@@ -228,6 +248,9 @@ async function simulateTransactionConfirmation(txHash: string) {
 			await tx.topUpTransaction.update({
 				where: { txHash },
 				data: { status: "CONFIRMED" },
+				select: {
+					txHash: true,
+				},
 			});
 		});
 
@@ -241,6 +264,9 @@ async function simulateTransactionConfirmation(txHash: string) {
 		await prisma.topUpTransaction.update({
 			where: { txHash },
 			data: { status: "FAILED" },
+			select: {
+				txHash: true,
+			},
 		});
 	}
 }

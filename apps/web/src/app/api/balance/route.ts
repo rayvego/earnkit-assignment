@@ -7,6 +7,7 @@ const getBalanceSchema = z.object({
 	walletAddress: z.string().startsWith("0x").length(42),
 });
 
+// get the balance for a developer for a specific agent
 export async function GET(req: NextRequest) {
 	try {
 		const { searchParams } = new URL(req.url);
@@ -18,7 +19,9 @@ export async function GET(req: NextRequest) {
 
 		if (!validation.success) {
 			return NextResponse.json(
-				{ message: "Invalid or missing parameters" },
+				{
+					message: `Invalid or missing parameters: ${JSON.stringify(validation.error.errors)}`,
+				},
 				{ status: 400 },
 			);
 		}
