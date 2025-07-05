@@ -86,9 +86,9 @@ interface PollingParams {
 	walletAddress: string;
 	initialBalance: UserBalance;
 	onConfirmation: (newBalance: UserBalance) => void;
-	onTimeout?: () => void; // Make timeout handler optional
-	pollInterval?: number; // Allow overriding the interval
-	maxPolls?: number; // Allow overriding the timeout
+	onTimeout?: () => void;
+	pollInterval?: number;
+	maxPolls?: number;
 }
 
 interface ApiErrorResponse {
@@ -104,53 +104,50 @@ const MAX_RETRIES = 2; // 1 initial attempt + 2 retries
  */
 export class EarnKit {
 	private agentId: string;
-	private baseUrl: string = "http://localhost:3000";
+	private baseUrl: string = "http://localhost:3000"; // https://api.earnkit.com
 	private debug: boolean = false;
 	private requestTimeoutMs: number = 30_000;
 
 	/**
 	 * Initializes the EarnKit SDK with a specific agent configuration.
-	 * This method must be called once before any other SDK methods are used.
 	 * Validates the agentId is a non-empty CUID string
 	 * Store the agentId in the instance for future use (as a private property)
 	 * Synchronous operation - no network calls
 	 *
 	 * @param {EarnKitConfig} config - The configuration object for the SDK.
 	 * @param {string} config.agentId - The unique ID for your agent, found on the EarnKit dashboard.
-	 * @param {string} [config.baseUrl] - The base URL of the EarnKit API. Defaults to http://localhost:3000.
+	 * @param {string} [config.baseUrl] - The base URL of the EarnKit Backend API. Defaults to http://localhost:3000.
 	 * @param {boolean} [config.debug] - Whether to enable debug logging. Defaults to false.
-	 * @param {number} [config.requestTimeoutMs] - The request timeout in milliseconds. Defaults to 30000.
+	 * @param {number} [config.requestTimeoutMs] - The maximum global request timeout in milliseconds. Defaults to 30000.
 	 * @returns {void}
+	 * @throws {EarnKitInitializationError} Throws an error if the initialization fails.
 	 */
 	constructor(config: EarnKitConfig) {
 		// input validation
-		if (
-			!config ||
-			typeof config.agentId !== "string" ||
-			config.agentId.trim() === ""
-		) {
-			throw new EarnKitInitializationError(
-				"`agentId` provided to the constructor is invalid. Please provide a valid string.",
-			);
+		if (!config) {
+			throw new EarnKitInitializationError("Configuration object is required.");
 		}
+
+		this._validateString(config.agentId, "agentId", {
+			errorType: EarnKitInitializationError,
+		});
 
 		if (config.baseUrl) {
 			try {
 				// validate that it's a valid URL
 				new URL(config.baseUrl);
 				this.baseUrl = config.baseUrl;
-			} catch (_error) {
+			} catch (error) {
 				throw new EarnKitInitializationError(
-					"`baseUrl` provided to the constructor is not a valid URL.",
+					`baseUrl provided to the constructor is not a valid URL. Error: ${error}`,
 				);
 			}
 		}
 
 		this.debug = config.debug ?? false;
 		this.requestTimeoutMs = config.requestTimeoutMs ?? 30_000;
-
-		// store the validated agentId in the class instance for later use by other methods
 		this.agentId = config.agentId;
+
 		this._log(`SDK instance created for agent: ${this.agentId}`);
 		this._log(`Using API base URL: ${this.baseUrl}`);
 		this._log(`Request timeout set to: ${this.requestTimeoutMs}ms`);
@@ -160,25 +157,23 @@ export class EarnKit {
 	 * Initiates a trackable event. This should be called before running the core AI logic.
 	 * The developer is responsible for passing in the correct wallet address of the end user. This is done to avoid tightly coupling the SDK to a specific wallet provider.
 	 * It checks for sufficient funds/credits and provisionally deducts them.
-	 * Checks if the SDK is initialized
-	 * Sends a POST request to the /api/track endpoint
-	 * On success, returns the eventId
-	 * On error, throws an error
+	 * Sends a POST request to the /api/track endpoint and returns the eventId.
 	 *
 	 * @param {TrackParams} params - The parameters for the track event.
+	 * @param {string} params.walletAddress - The wallet address of the end user.
+	 * @param {string} [params.idempotencyKey] - A unique identifier for the event.
+	 * @param {number} [params.creditsToDeduct] - The number of credits to deduct from the user's balance.
 	 * @returns {Promise<{ eventId: string }>} A promise that resolves with the unique event ID.
-	 * @throws {Error} Throws an error if the request fails (e.g., insufficient funds).
+	 * @throws {EarnKitInputError | EarnKitApiError} Throws an error if the request fails (e.g., insufficient funds).
 	 */
 	public async track(params: TrackParams): Promise<{ eventId: string }> {
-		if (
-			!params ||
-			typeof params.walletAddress !== "string" ||
-			!params.walletAddress.startsWith("0x")
-		) {
-			throw new EarnKitInputError(
-				"`walletAddress` is required and must be a valid string.",
-			);
+		if (!params) {
+			throw new EarnKitInputError("Parameters object is required.");
 		}
+
+		this._validateString(params.walletAddress, "walletAddress", {
+			startsWith: "0x",
+		});
 
 		const body = {
 			agentId: this.agentId,
@@ -206,24 +201,19 @@ export class EarnKit {
 	/**
 	 * Captures a previously tracked event, finalizing the charge.
 	 * This should be called after the core AI logic has successfully completed.
-	 * Sends a POST request to the /api/capture endpoint
-	 * On success, returns the success status
-	 * On error, throws an error
+	 * Sends a POST request to the /api/capture endpoint and returns the success status.
 	 *
 	 * @param {CaptureParams} params - The parameters for the capture event.
+	 * @param {string} params.eventId - The eventId of the tracked event to capture.
 	 * @returns {Promise<{ success: boolean }>} A promise that resolves indicating success.
-	 * @throws {Error} Throws an error if the event cannot be captured (e.g., not found or not pending).
+	 * @throws {EarnKitInputError | EarnKitApiError} Throws an error if the event cannot be captured (e.g., not found or not pending).
 	 */
 	public async capture(params: CaptureParams): Promise<{ success: boolean }> {
-		if (
-			!params ||
-			typeof params.eventId !== "string" ||
-			params.eventId.trim() === ""
-		) {
-			throw new EarnKitInputError(
-				"`eventId` is required and must be a valid string.",
-			);
+		if (!params) {
+			throw new EarnKitInputError("Parameters object is required.");
 		}
+
+		this._validateString(params.eventId, "eventId");
 
 		const body = {
 			eventId: params.eventId,
@@ -240,24 +230,19 @@ export class EarnKit {
 	/**
 	 * Releases a previously tracked event, refunding any provisionally held funds.
 	 * This should be called in a catch block if the core AI logic fails after a successful track() call.
-	 * Sends a POST request to the /api/release endpoint
-	 * On success, returns the success status
-	 * On error, throws an error
+	 * Sends a POST request to the /api/release endpoint and returns the success status.
 	 *
 	 * @param {ReleaseParams} params - The parameters for the release event.
+	 * @param {string} params.eventId - The eventId of the tracked event to release.
 	 * @returns {Promise<{ success: boolean }>} A promise that resolves indicating success.
-	 * @throws {Error} Throws an error if the event cannot be released.
+	 * @throws {EarnKitInputError | EarnKitApiError} Throws an error if the event cannot be released.
 	 */
 	public async release(params: ReleaseParams): Promise<{ success: boolean }> {
-		if (
-			!params ||
-			typeof params.eventId !== "string" ||
-			params.eventId.trim() === ""
-		) {
-			throw new EarnKitInputError(
-				"`eventId` is required for release() and must be a valid string.",
-			);
+		if (!params) {
+			throw new EarnKitInputError("Parameters object is required.");
 		}
+
+		this._validateString(params.eventId, "eventId");
 
 		const body = {
 			eventId: params.eventId,
@@ -273,7 +258,9 @@ export class EarnKit {
 
 	/**
 	 * Fetches the pre-configured top-up options for the current agent.
+	 * Sends a GET request to the /api/top-up-details endpoint and returns the top-up options.
 	 * @returns {Promise<{ options: TopUpOption[] }>} A promise that resolves with the purchase options.
+	 * @throws {EarnKitApiError} Throws an error if the request fails.
 	 */
 	public async getTopUpDetails(): Promise<TopUpDetailsResponse> {
 		const url = new URL(`${this.baseUrl}/api/top-up-details`);
@@ -284,8 +271,14 @@ export class EarnKit {
 
 	/**
 	 * Submits a transaction hash to the backend for monitoring.
+	 * Sends a POST request to the /api/top-up-details endpoint and returns the backend's confirmation response.
 	 * @param {SubmitTopUpParams} params - The details of the submitted transaction.
-	 * @returns {Promise<any>} A promise that resolves with the backend's confirmation response.
+	 * @param {string} params.txHash - The transaction hash of the top-up.
+	 * @param {string} params.walletAddress - The wallet address of the end user.
+	 * @param {string} params.amountInEth - The amount of ETH to top up.
+	 * @param {number} [params.creditsToTopUp] - The number of credits to top up.
+	 * @returns {Promise<SubmitTopUpResponse>} A promise that resolves with the backend's confirmation response.
+	 * @throws {EarnKitApiError} Throws an error if the request fails.
 	 */
 	public async submitTopUpTransaction(
 		params: SubmitTopUpParams,
@@ -307,8 +300,10 @@ export class EarnKit {
 
 	/**
 	 * Fetches the current ETH and credit balance for a user.
+	 * Sends a GET request to the /api/balance endpoint and returns the user's balances.
 	 * @param {{ walletAddress: string }} params - The user's wallet address.
 	 * @returns {Promise<UserBalance>} A promise that resolves with the user's balances.
+	 * @throws {EarnKitApiError} Throws an error if the request fails.
 	 */
 	public async getBalance(params: {
 		walletAddress: string;
@@ -323,7 +318,16 @@ export class EarnKit {
 	/**
 	 * Polls the backend to check for a balance update after a top-up.
 	 * This is a utility function to simplify the developer's workflow.
+	 * Sends a GET request repeatedly to the /api/balance endpoint and returns the user's balances.
 	 * @param {PollingParams} params - Configuration for the polling process.
+	 * @param {string} params.walletAddress - The wallet address of the end user.
+	 * @param {UserBalance} params.initialBalance - The initial balance of the user.
+	 * @param {function} params.onConfirmation - A callback function to be called when the balance is updated.
+	 * @param {function} [params.onTimeout] - A callback function to be called when the polling times out.
+	 * @param {number} [params.pollInterval] - The interval in milliseconds at which to poll the balance. Defaults to 10 seconds.
+	 * @param {number} [params.maxPolls] - The maximum number of polls to make. Defaults to 30.
+	 * @returns {void}
+	 * @throws {EarnKitApiError} Throws an error if the polling times out.
 	 */
 	public pollForBalanceUpdate(params: PollingParams): void {
 		const {
@@ -331,8 +335,8 @@ export class EarnKit {
 			initialBalance,
 			onConfirmation,
 			onTimeout,
-			pollInterval = 10000, // Default to 10 seconds
-			maxPolls = 30, // Default to 5 minutes (30 polls * 10s)
+			pollInterval = 10_000,
+			maxPolls = 30,
 		} = params;
 
 		let pollCount = 0;
@@ -362,19 +366,76 @@ export class EarnKit {
 					onConfirmation(currentBalance);
 				}
 			} catch (error) {
-				console.error("EarnKit: Error during polling, stopping.", error);
+				this._log("Error during polling, stopping.", error);
 				clearInterval(intervalId);
-				// Don't call onTimeout here, as this was an unexpected error.
+				if (onTimeout) onTimeout();
 			}
 		}, pollInterval);
 	}
 
+	/**
+	 * Logs a message to the console if debug mode is enabled.
+	 * @param {string} message - The message to log.
+	 * @param {unknown[]} args - The arguments to log.
+	 */
 	private _log(message: string, ...args: unknown[]): void {
 		if (this.debug) {
 			console.log(`[EarnKit-SDK] ${message}`, ...args);
 		}
 	}
 
+	/**
+	 * Validates that a string parameter meets the specified criteria.
+	 * @param {unknown} value - The value to validate.
+	 * @param {string} paramName - The name of the parameter for error messages.
+	 * @param {object} options - Validation options.
+	 * @param {boolean} [options.required=true] - Whether the parameter is required.
+	 * @param {boolean} [options.allowEmpty=false] - Whether empty strings are allowed.
+	 * @param {string} [options.startsWith] - Required prefix for the string.
+	 * @param {typeof EarnKitInputError | typeof EarnKitInitializationError} [options.errorType=EarnKitInputError] - The type of error to throw.
+	 * @throws {EarnKitInputError | EarnKitInitializationError} Throws an error if validation fails.
+	 */
+	private _validateString(
+		value: unknown,
+		paramName: string,
+		options: {
+			required?: boolean;
+			allowEmpty?: boolean;
+			startsWith?: string;
+			errorType?: typeof EarnKitInputError | typeof EarnKitInitializationError;
+		} = {},
+	): void {
+		const {
+			required = true,
+			allowEmpty = false,
+			startsWith,
+			errorType = EarnKitInputError,
+		} = options;
+
+		if (!required && (value === undefined || value === null)) {
+			return;
+		}
+
+		if (typeof value !== "string") {
+			throw new errorType(`\`${paramName}\` must be a valid string.`);
+		}
+
+		if (!allowEmpty && value.trim() === "") {
+			throw new errorType(`\`${paramName}\` cannot be empty.`);
+		}
+
+		if (startsWith && !value.startsWith(startsWith)) {
+			throw new errorType(`\`${paramName}\` must start with "${startsWith}".`);
+		}
+	}
+
+	/**
+	 * Makes an API call to the backend with retry and timeout logic.
+	 * @param {string} path - The path of the API call.
+	 * @param {RequestInit} options - The options for the API call.
+	 * @returns {Promise<T>} A promise that resolves with the API call response.
+	 * @throws {EarnKitApiError | Error} Throws an error if the request fails.
+	 */
 	private async _apiCall<T>(
 		path: string,
 		options: RequestInit = {},
@@ -456,6 +517,11 @@ export class EarnKit {
 		);
 	}
 
+	/**
+	 * Determines if an error is retryable.
+	 * @param {unknown} error - The error to check.
+	 * @returns {boolean} True if the error is retryable, false otherwise.
+	 */
 	private isErrorRetryable(error: unknown): boolean {
 		if (!(error instanceof EarnKitApiError)) {
 			// network errors or AbortError are retryable

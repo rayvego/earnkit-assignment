@@ -20,8 +20,9 @@ import { EarnKit } from 'earnkit-sdk';
 // Initialize SDK
 const earnkit = new EarnKit({
   agentId: 'your-agent-id', // Get this from your EarnKit dashboard
-  baseUrl: 'https://your-api.com', // Optional: defaults to localhost:3000
-  debug: true // Optional: enable debug logging
+  baseUrl: 'https://your-api.com', // Optional: defaults to http://localhost:3000
+  debug: true, // Optional: enable debug logging
+  requestTimeoutMs: 30000 // Optional: request timeout in milliseconds
 });
 
 // Basic usage pattern
@@ -53,7 +54,7 @@ interface EarnKitConfig {
   agentId: string;           // Required: Your agent ID from the dashboard
   baseUrl?: string;          // Optional: API base URL (default: http://localhost:3000)
   debug?: boolean;           // Optional: Enable debug logging (default: false)
-  requestTimeoutMs?: number; // Optional: Request timeout (default: 30000)
+  requestTimeoutMs?: number; // Optional: Request timeout (default: 30000ms)
 }
 ```
 
@@ -377,7 +378,6 @@ The SDK provides specific error types for different failure scenarios:
 
 ```typescript
 import { 
-  EarnKitError, 
   EarnKitInitializationError, 
   EarnKitInputError, 
   EarnKitApiError 
@@ -565,9 +565,8 @@ try {
   await earnkit.track({ walletAddress });
 } catch (error) {
   if (error instanceof EarnKitApiError && error.status === 0) {
-    // Network error - implement retry logic
-    console.log('Network error, retrying...');
-    // The SDK has built-in retry logic, but you can add your own
+    // Network error - the SDK has built-in retry logic
+    console.log('Network error occurred, SDK will retry automatically');
   }
 }
 ```
@@ -577,24 +576,23 @@ try {
 The SDK works with two fee model types configured in your dashboard:
 
 ### Free Tier Model
-```json
-{
-  "threshold": 50,
-  "rate": "0.0001"
+```typescript
+interface FreeTierConfig {
+  threshold: number;  // Free prompts per wallet
+  rate: number;       // ETH charged per prompt after threshold
 }
 ```
 - First 50 prompts free per wallet
 - 0.0001 ETH per prompt thereafter
 
 ### Credit-Based Model
-```json
-{
-  "creditsPerPrompt": 10,
-  "topUpOptions": [
-    { "creditAmount": 100, "pricePerCredit": 0.001 },
-    { "creditAmount": 500, "pricePerCredit": 0.0008 },
-    { "creditAmount": 1000, "pricePerCredit": 0.0006 }
-  ]
+```typescript
+interface CreditBasedConfig {
+  creditsPerPrompt: number;
+  topUpOptions: {
+    creditAmount: number;
+    pricePerCredit: number;
+  }[];
 }
 ```
 - 10 credits per prompt (configurable via `creditsToDeduct`)
@@ -604,10 +602,10 @@ The SDK works with two fee model types configured in your dashboard:
 
 The SDK includes built-in retry logic for reliability:
 
-- **Automatic Retries**: Up to 2 retries for server errors (5xx) and timeouts
+- **Automatic Retries**: Up to 2 retries (1 initial + 2 retries) for server errors (5xx) and timeouts
 - **Exponential Backoff**: 1s, 2s, 4s delays between retries
 - **Request Timeout**: 30 seconds default (configurable)
-- **Error Classification**: Only retries transient errors
+- **Error Classification**: Only retries transient errors (server errors and timeouts)
 
 ```typescript
 // SDK automatically retries transient failures
@@ -628,7 +626,10 @@ import {
   UserBalance, 
   TopUpOption,
   FreeTierConfig,
-  CreditBasedConfig 
+  CreditBasedConfig,
+  EarnKitApiError,
+  EarnKitInputError,
+  EarnKitInitializationError
 } from 'earnkit-sdk';
 
 // All methods are properly typed
