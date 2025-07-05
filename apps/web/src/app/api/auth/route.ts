@@ -1,11 +1,7 @@
 import { verifyPrivyToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { signUpSchema } from "@/lib/schemas";
 import { type NextRequest, NextResponse } from "next/server";
-import * as z from "zod";
-
-const signUpSchema = z.object({
-	walletAddress: z.string().min(1).optional(),
-});
 
 // sign up a developer
 export async function POST(request: NextRequest) {

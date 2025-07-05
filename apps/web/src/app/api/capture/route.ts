@@ -1,11 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import { captureRequestBodySchema } from "@/lib/schemas";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-
-const captureRequestBodySchema = z.object({
-	eventId: z.string().cuid(),
-});
 
 // capture a pending event
 export async function POST(req: Request) {

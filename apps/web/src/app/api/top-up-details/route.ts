@@ -1,21 +1,10 @@
 import { prisma } from "@/lib/prisma";
+import { getDetailsSchema, submitTopUpSchema } from "@/lib/schemas";
 import { FeeModelType, Prisma } from "@prisma/client";
 import type { CreditBasedConfig, TopUpOption } from "earnkit-sdk";
 import { ethers } from "ethers";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-
-const getDetailsSchema = z.object({
-	agentId: z.string().cuid(),
-});
-
-const submitTopUpSchema = z.object({
-	txHash: z.string().startsWith("0x").length(66),
-	walletAddress: z.string().startsWith("0x").length(42),
-	agentId: z.string().cuid(),
-	amountInEth: z.string(),
-	creditsToTopUp: z.number().int().positive().optional(),
-});
 
 // get top-up details for an agent
 export async function GET(req: NextRequest) {

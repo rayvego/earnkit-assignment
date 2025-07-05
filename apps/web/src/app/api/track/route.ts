@@ -1,15 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { trackRequestBodySchema } from "@/lib/schemas";
 import { FeeModelType, Prisma } from "@prisma/client";
 import type { CreditBasedConfig, FreeTierConfig } from "earnkit-sdk";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-
-const trackRequestBodySchema = z.object({
-	agentId: z.string().cuid(),
-	walletAddress: z.string().startsWith("0x").length(42),
-	idempotencyKey: z.string().uuid().optional(), // Recommend UUID for idempotency keys
-	creditsToDeduct: z.number().int().positive().optional(),
-});
 
 export async function POST(req: Request) {
 	try {

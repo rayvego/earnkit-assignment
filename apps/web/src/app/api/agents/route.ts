@@ -1,28 +1,7 @@
 import { verifyPrivyToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { FeeModelType } from "@prisma/client";
+import { createAgentSchema } from "@/lib/schemas";
 import { type NextRequest, NextResponse } from "next/server";
-import * as z from "zod";
-
-const createAgentSchema = z.object({
-	name: z.string().min(1),
-	feeModelType: z.nativeEnum(FeeModelType),
-	feeModelConfig: z.union([
-		z.object({
-			threshold: z.number(),
-			rate: z.number(),
-		}),
-		z.object({
-			creditsPerPrompt: z.number(),
-			topUpOptions: z.array(
-				z.object({
-					creditAmount: z.number(),
-					pricePerCredit: z.number(),
-				}),
-			),
-		}),
-	]),
-});
 
 // get all agents for a developer
 export async function GET(request: NextRequest) {

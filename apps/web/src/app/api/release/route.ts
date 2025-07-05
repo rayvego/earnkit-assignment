@@ -1,11 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import { releaseRequestBodySchema } from "@/lib/schemas";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-
-const releaseRequestBodySchema = z.object({
-	eventId: z.string().cuid(),
-});
 
 // release a pending event
 export async function POST(req: Request) {

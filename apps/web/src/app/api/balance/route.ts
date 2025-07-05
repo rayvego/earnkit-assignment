@@ -1,11 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { getBalanceSchema } from "@/lib/schemas";
 import { type NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-
-const getBalanceSchema = z.object({
-	agentId: z.string().cuid(),
-	walletAddress: z.string().startsWith("0x").length(42),
-});
 
 // get the balance for a developer for a specific agent
 export async function GET(req: NextRequest) {
