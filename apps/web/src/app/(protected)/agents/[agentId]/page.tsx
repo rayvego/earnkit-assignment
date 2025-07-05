@@ -4,6 +4,7 @@ import { AgentDetailsForm } from "@/components/agent-details-form";
 import { AgentLogsTable } from "@/components/agent-logs-table";
 import { DeleteAgentDialog } from "@/components/delete-agent-dialog";
 import { useQuery } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
 
 async function getAgent(agentId: string) {
@@ -44,7 +45,11 @@ export default function AgentPage() {
 	});
 
 	if (isAgentLoading || areLogsLoading)
-		return <p className="text-center p-8">Loading...</p>;
+		return (
+			<div className="flex min-h-screen items-center justify-center">
+				<Loader2 className="animate-spin" />
+			</div>
+		);
 	if (agentError || logsError)
 		return (
 			<p className="text-red-500 text-center p-8">Error loading agent data.</p>

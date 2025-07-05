@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { Button } from "@/components/ui/button";
 import { usePrivy } from "@privy-io/react-auth";
@@ -21,8 +21,8 @@ export default function LoginPage() {
 			<div className="flex flex-col items-center gap-8">
 				<h1 className="text-5xl font-mono tracking-tighter">EarnKit AI</h1>
 				<p className="text-neutral-500 max-w-md text-center">
-					The easiest way to monetize your AI agent with usage-based fees and
-					a credit system.
+					The easiest way to monetize your AI agent with usage-based fees and a
+					credit system.
 				</p>
 				<Button
 					size={"lg"}

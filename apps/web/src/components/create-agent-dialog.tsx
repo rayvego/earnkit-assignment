@@ -37,9 +37,7 @@ import {
 
 const topUpOptionSchema = z.object({
 	creditAmount: z.coerce.number().int().positive("Must be a positive number"),
-	pricePerCredit: z.coerce
-		.number()
-		.positive("Must be a positive number"),
+	pricePerCredit: z.coerce.number().positive("Must be a positive number"),
 });
 
 const formSchema = z
@@ -181,7 +179,10 @@ export function CreateAgentDialog() {
 								<FormItem>
 									<FormLabel>Agent Name</FormLabel>
 									<FormControl>
-										<Input placeholder="e.g., Customer Support Bot" {...field} />
+										<Input
+											placeholder="e.g., Customer Support Bot"
+											{...field}
+										/>
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -292,11 +293,7 @@ export function CreateAgentDialog() {
 													<FormItem>
 														<FormLabel>Price/Credit (ETH)</FormLabel>
 														<FormControl>
-															<Input
-																type="number"
-																step="0.00001"
-																{...field}
-															/>
+															<Input type="number" step="0.00001" {...field} />
 														</FormControl>
 														<FormMessage />
 													</FormItem>
@@ -327,9 +324,7 @@ export function CreateAgentDialog() {
 
 						<DialogFooter>
 							<Button type="submit" disabled={createAgentMutation.isPending}>
-								{createAgentMutation.isPending
-									? "Creating..."
-									: "Create Agent"}
+								{createAgentMutation.isPending ? "Creating..." : "Create Agent"}
 							</Button>
 						</DialogFooter>
 					</form>

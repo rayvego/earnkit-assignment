@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";

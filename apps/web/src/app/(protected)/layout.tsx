@@ -2,6 +2,7 @@
 
 import { Navbar } from "@/components/navbar";
 import { usePrivy } from "@privy-io/react-auth";
+import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -22,7 +23,7 @@ export default function ProtectedLayout({
 	if (!ready || !authenticated) {
 		return (
 			<div className="flex min-h-screen items-center justify-center">
-				Loading...
+				<Loader2 className="animate-spin" />
 			</div>
 		);
 	}

@@ -7,7 +7,10 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 
-function formatFeeModel(agent: any) {
+function formatFeeModel(agent: {
+	feeModelType: string;
+	feeModelConfig: { threshold: number; rate: number; creditsPerPrompt: number };
+}) {
 	const { feeModelType, feeModelConfig } = agent;
 	if (feeModelType === "FREE_TIER") {
 		return `Free Tier: ${feeModelConfig.threshold} free prompts, then ${feeModelConfig.rate} ETH/prompt`;
@@ -17,7 +20,21 @@ function formatFeeModel(agent: any) {
 	return "Unknown Fee Model";
 }
 
-export function AgentCard({ agent }: { agent: any }) {
+export function AgentCard({
+	agent,
+}: {
+	agent: {
+		id: string;
+		name: string;
+		feeModelType: string;
+		feeModelConfig: {
+			threshold: number;
+			rate: number;
+			creditsPerPrompt: number;
+		};
+		createdAt: string;
+	};
+}) {
 	return (
 		<Card className="hover:shadow-md transition-shadow flex flex-col h-full">
 			<CardHeader>

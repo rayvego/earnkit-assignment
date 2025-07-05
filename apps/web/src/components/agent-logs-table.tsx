@@ -7,7 +7,18 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 
-export function AgentLogsTable({ logs }: { logs: any[] }) {
+export function AgentLogsTable({
+	logs,
+}: {
+	logs: {
+		id: string;
+		createdAt: string;
+		feeDeducted: number;
+		creditsDeducted: number;
+		userWalletAddress: string;
+		status: string;
+	}[];
+}) {
 	return (
 		<Table>
 			<TableHeader>

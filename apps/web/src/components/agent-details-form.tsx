@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FeeModelType, type Agent } from "@prisma/client";
+import { type Agent, FeeModelType } from "@prisma/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useFieldArray, useForm } from "react-hook-form";
@@ -28,9 +28,7 @@ import {
 
 const topUpOptionSchema = z.object({
 	creditAmount: z.coerce.number().int().positive("Must be a positive number"),
-	pricePerCredit: z.coerce
-		.number()
-		.positive("Must be a positive number"),
+	pricePerCredit: z.coerce.number().positive("Must be a positive number"),
 });
 
 const formSchema = z
@@ -175,7 +173,10 @@ export function AgentDetailsForm({ agent }: AgentDetailsFormProps) {
 								<FormItem>
 									<FormLabel>Agent Name</FormLabel>
 									<FormControl>
-										<Input placeholder="e.g., Customer Support Bot" {...field} />
+										<Input
+											placeholder="e.g., Customer Support Bot"
+											{...field}
+										/>
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -185,7 +186,11 @@ export function AgentDetailsForm({ agent }: AgentDetailsFormProps) {
 						<div className="space-y-2">
 							<FormLabel>Agent ID</FormLabel>
 							<div className="flex items-center gap-2">
-								<Input readOnly value={agent.id} className="font-mono bg-muted" />
+								<Input
+									readOnly
+									value={agent.id}
+									className="font-mono bg-muted"
+								/>
 								<Button
 									type="button"
 									variant="outline"
@@ -303,11 +308,7 @@ export function AgentDetailsForm({ agent }: AgentDetailsFormProps) {
 													<FormItem>
 														<FormLabel>Price/Credit (ETH)</FormLabel>
 														<FormControl>
-															<Input
-																type="number"
-																step="0.00001"
-																{...field}
-															/>
+															<Input type="number" step="0.00001" {...field} />
 														</FormControl>
 														<FormMessage />
 													</FormItem>

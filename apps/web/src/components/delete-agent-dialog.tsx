@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -28,16 +28,16 @@ export function DeleteAgentDialog({ agentId }: { agentId: string }) {
 	const queryClient = useQueryClient();
 	const router = useRouter();
 
-	const mutation = useMutation({ 
+	const mutation = useMutation({
 		mutationFn: deleteAgent,
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ['agents'] });
+			queryClient.invalidateQueries({ queryKey: ["agents"] });
 			toast.success("Agent deleted successfully!");
 			router.push("/dashboard");
 		},
 		onError: () => {
 			toast.error("Failed to delete agent.");
-		}
+		},
 	});
 
 	const handleDelete = () => {
@@ -53,12 +53,17 @@ export function DeleteAgentDialog({ agentId }: { agentId: string }) {
 				<DialogHeader>
 					<DialogTitle>Are you sure?</DialogTitle>
 					<DialogDescription>
-						This action cannot be undone. This will permanently delete your agent and all of its data.
+						This action cannot be undone. This will permanently delete your
+						agent and all of its data.
 					</DialogDescription>
 				</DialogHeader>
 				<DialogFooter>
 					<Button variant="outline">Cancel</Button>
-					<Button variant="destructive" onClick={handleDelete} disabled={mutation.isPending}>
+					<Button
+						variant="destructive"
+						onClick={handleDelete}
+						disabled={mutation.isPending}
+					>
 						{mutation.isPending ? "Deleting..." : "Delete"}
 					</Button>
 				</DialogFooter>
