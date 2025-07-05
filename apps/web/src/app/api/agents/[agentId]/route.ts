@@ -160,17 +160,19 @@ export async function DELETE(
 
 		// delete in a transaction for atomicity
 		const deletedAgent = await prisma.$transaction(async (tx) => {
-			await tx.userBalance.deleteMany({
-				where: {
-					agentId,
-				},
-			});
-
-			await tx.usageEvent.deleteMany({
-				where: {
-					agentId,
-				},
-			});
+			// delete related records in parallel
+			await Promise.all([
+				tx.userBalance.deleteMany({
+					where: {
+						agentId,
+					},
+				}),
+				tx.usageEvent.deleteMany({
+					where: {
+						agentId,
+					},
+				}),
+			]);
 
 			return await tx.agent.delete({
 				where: { id: agentId },

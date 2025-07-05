@@ -27,31 +27,33 @@ export async function POST(req: Request) {
 			validation.data;
 
 		const eventId = await prisma.$transaction(async (tx) => {
-			// fetch agent
-			const agent = await tx.agent.findUnique({
-				where: { id: agentId },
-				select: {
-					id: true,
-					feeModelType: true,
-					feeModelConfig: true,
-				},
-			});
+			// fetch agent and check idempotency in parallel
+			const [agent, existingEvent] = await Promise.all([
+				tx.agent.findUnique({
+					where: { id: agentId },
+					select: {
+						id: true,
+						feeModelType: true,
+						feeModelConfig: true,
+					},
+				}),
+				idempotencyKey
+					? tx.usageEvent.findUnique({
+							where: { agentId_idempotencyKey: { agentId, idempotencyKey } },
+							select: {
+								id: true,
+							},
+						})
+					: null,
+			]);
 
 			if (!agent) {
 				throw new Error("Agent not found", { cause: 404 });
 			}
 
 			// handle idempotency
-			if (idempotencyKey) {
-				const existingEvent = await tx.usageEvent.findUnique({
-					where: { agentId_idempotencyKey: { agentId, idempotencyKey } },
-					select: {
-						id: true,
-					},
-				});
-				if (existingEvent) {
-					return { eventId: existingEvent.id };
-				}
+			if (existingEvent) {
+				return { eventId: existingEvent.id };
 			}
 
 			// core fee logic

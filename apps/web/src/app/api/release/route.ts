@@ -44,46 +44,49 @@ export async function POST(req: Request) {
 				});
 			}
 
-			// perform the refund (if necessary)
+			// perform the refund (if necessary) and event status update in parallel
 			const { feeDeducted, creditsDeducted, userWalletAddress, agentId } =
 				eventToRelease;
 
-			if (
-				feeDeducted?.gt(0) ||
-				(creditsDeducted && creditsDeducted > BigInt(0))
-			) {
-				await tx.userBalance.update({
+			const shouldRefund =
+				feeDeducted?.gt(0) || (creditsDeducted && creditsDeducted > BigInt(0));
+
+			// Run balance refund and event status update in parallel
+			const [, updatedEvent] = await Promise.all([
+				shouldRefund
+					? tx.userBalance.update({
+							where: {
+								userWalletAddress_agentId: {
+									userWalletAddress,
+									agentId,
+								},
+							},
+							data: {
+								ethBalance: feeDeducted
+									? { increment: feeDeducted }
+									: undefined,
+								creditBalance: creditsDeducted
+									? { increment: creditsDeducted }
+									: undefined,
+							},
+							select: {
+								userWalletAddress: true,
+								agentId: true,
+							},
+						})
+					: Promise.resolve(null),
+				tx.usageEvent.update({
 					where: {
-						userWalletAddress_agentId: {
-							userWalletAddress,
-							agentId,
-						},
+						id: eventId,
 					},
 					data: {
-						ethBalance: feeDeducted ? { increment: feeDeducted } : undefined,
-						creditBalance: creditsDeducted
-							? { increment: creditsDeducted }
-							: undefined,
+						status: "CANCELLED",
 					},
 					select: {
-						userWalletAddress: true,
-						agentId: true,
+						id: true,
 					},
-				});
-			}
-
-			// update the event status to cancelled
-			const updatedEvent = await tx.usageEvent.update({
-				where: {
-					id: eventId,
-				},
-				data: {
-					status: "CANCELLED",
-				},
-				select: {
-					id: true,
-				},
-			});
+				}),
+			]);
 
 			return updatedEvent;
 		});

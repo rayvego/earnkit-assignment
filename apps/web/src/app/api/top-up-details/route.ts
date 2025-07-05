@@ -217,41 +217,41 @@ async function simulateTransactionConfirmation(txHash: string) {
 				throw new Error(`Agent ${agentId} not found during confirmation`);
 			}
 
-			// perform the dynamic update
-			await tx.userBalance.upsert({
-				where: { userWalletAddress_agentId: { userWalletAddress, agentId } },
-				create: {
-					userWalletAddress,
-					agentId,
-					ethBalance:
-						agent.feeModelType === FeeModelType.FREE_TIER
-							? new Prisma.Decimal(amountInEth)
-							: 0,
-					creditBalance:
-						agent.feeModelType === FeeModelType.CREDIT_BASED && creditsToTopUp
-							? creditsToTopUp
-							: BigInt(0),
-				},
-				update: {
-					ethBalance:
-						agent.feeModelType === FeeModelType.FREE_TIER
-							? { increment: new Prisma.Decimal(amountInEth) }
-							: undefined,
-					creditBalance:
-						agent.feeModelType === FeeModelType.CREDIT_BASED && creditsToTopUp
-							? { increment: creditsToTopUp }
-							: undefined,
-				},
-			});
-
-			// update the status of the TopUpTransaction record
-			await tx.topUpTransaction.update({
-				where: { txHash },
-				data: { status: "CONFIRMED" },
-				select: {
-					txHash: true,
-				},
-			});
+			// perform the dynamic update and status update in parallel
+			await Promise.all([
+				tx.userBalance.upsert({
+					where: { userWalletAddress_agentId: { userWalletAddress, agentId } },
+					create: {
+						userWalletAddress,
+						agentId,
+						ethBalance:
+							agent.feeModelType === FeeModelType.FREE_TIER
+								? new Prisma.Decimal(amountInEth)
+								: 0,
+						creditBalance:
+							agent.feeModelType === FeeModelType.CREDIT_BASED && creditsToTopUp
+								? creditsToTopUp
+								: BigInt(0),
+					},
+					update: {
+						ethBalance:
+							agent.feeModelType === FeeModelType.FREE_TIER
+								? { increment: new Prisma.Decimal(amountInEth) }
+								: undefined,
+						creditBalance:
+							agent.feeModelType === FeeModelType.CREDIT_BASED && creditsToTopUp
+								? { increment: creditsToTopUp }
+								: undefined,
+					},
+				}),
+				tx.topUpTransaction.update({
+					where: { txHash },
+					data: { status: "CONFIRMED" },
+					select: {
+						txHash: true,
+					},
+				}),
+			]);
 		});
 
 		console.log(`[Worker] Successfully processed top-up for tx ${txHash}`);
