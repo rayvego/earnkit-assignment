@@ -1,7 +1,8 @@
 "use client";
 
+import type { Agent } from "@/types";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type Agent, FeeModelType } from "@prisma/client";
+import { FeeModelType } from "@prisma/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useFieldArray, useForm } from "react-hook-form";
@@ -92,14 +93,10 @@ export function AgentDetailsForm({ agent }: AgentDetailsFormProps) {
 		resolver: zodResolver(formSchema),
 		defaultValues: {
 			name: agent.name,
-			feeModelType: agent.feeModelType,
-			// @ts-expect-error - feeModelConfig is a generic Json object
+			feeModelType: agent.feeModelType as FeeModelType,
 			threshold: agent.feeModelConfig?.threshold ?? 50,
-			// @ts-expect-error - feeModelConfig is a generic Json object
 			rate: agent.feeModelConfig?.rate ?? 0.0001,
-			// @ts-expect-error - feeModelConfig is a generic Json object
 			creditsPerPrompt: agent.feeModelConfig?.creditsPerPrompt ?? 10,
-			// @ts-expect-error - feeModelConfig is a generic Json object
 			topUpOptions: agent.feeModelConfig?.topUpOptions ?? [
 				{ creditAmount: 100, pricePerCredit: 0.001 },
 			],

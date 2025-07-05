@@ -1,8 +1,8 @@
 "use client";
 
 import { Navbar } from "@/components/navbar";
+import { FullPageLoader } from "@/components/ui/full-page-loader";
 import { usePrivy } from "@privy-io/react-auth";
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -21,11 +21,7 @@ export default function ProtectedLayout({
 	}, [ready, authenticated, router]);
 
 	if (!ready || !authenticated) {
-		return (
-			<div className="flex min-h-screen items-center justify-center">
-				<Loader2 className="animate-spin" />
-			</div>
-		);
+		return <FullPageLoader />;
 	}
 
 	return (

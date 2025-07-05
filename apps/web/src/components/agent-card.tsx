@@ -6,35 +6,19 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import type { Agent } from "@/types";
 
-function formatFeeModel(agent: {
-	feeModelType: string;
-	feeModelConfig: { threshold: number; rate: number; creditsPerPrompt: number };
-}) {
+function formatFeeModel(agent: Agent) {
 	const { feeModelType, feeModelConfig } = agent;
 	if (feeModelType === "FREE_TIER") {
-		return `Free Tier: ${feeModelConfig.threshold} free prompts, then ${feeModelConfig.rate} ETH/prompt`;
+		return `Free Tier: ${feeModelConfig.threshold ?? 0} free prompts, then ${feeModelConfig.rate ?? 0} ETH/prompt`;
 	} else if (feeModelType === "CREDIT_BASED") {
-		return `Credit Based: ${feeModelConfig.creditsPerPrompt} credits/prompt`;
+		return `Credit Based: ${feeModelConfig.creditsPerPrompt ?? 0} credits/prompt`;
 	}
 	return "Unknown Fee Model";
 }
 
-export function AgentCard({
-	agent,
-}: {
-	agent: {
-		id: string;
-		name: string;
-		feeModelType: string;
-		feeModelConfig: {
-			threshold: number;
-			rate: number;
-			creditsPerPrompt: number;
-		};
-		createdAt: string;
-	};
-}) {
+export function AgentCard({ agent }: { agent: Agent }) {
 	return (
 		<Card className="hover:shadow-md transition-shadow flex flex-col h-full">
 			<CardHeader>

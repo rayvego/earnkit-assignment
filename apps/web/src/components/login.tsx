@@ -2,6 +2,7 @@
 
 import { usePrivy } from "@privy-io/react-auth";
 import { useMutation } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import toast from "react-hot-toast";
 import { Button } from "./ui/button";
@@ -9,7 +10,7 @@ import { Skeleton } from "./ui/skeleton";
 
 export default function LoginButton() {
 	const { ready, authenticated, user, login, logout } = usePrivy();
-
+	const router = useRouter();
 	// Use mutation for the auth API call
 	const authMutation = useMutation({
 		mutationFn: async ({ walletAddress }: { walletAddress: string }) => {
@@ -46,6 +47,8 @@ export default function LoginButton() {
 			authMutation.mutate({
 				walletAddress: user.wallet.address,
 			});
+
+			router.push("/dashboard");
 		}
 	}, [
 		ready,
@@ -53,6 +56,7 @@ export default function LoginButton() {
 		user?.id,
 		user?.wallet?.address,
 		authMutation.mutate,
+		router,
 	]);
 
 	const handleLogin = async () => {
@@ -90,7 +94,14 @@ export default function LoginButton() {
 					</Button>
 				</div>
 			) : (
-				<Button onClick={handleLogin}>Login</Button>
+				<Button
+					onClick={handleLogin}
+					size={"lg"}
+					className="rounded-full"
+					variant={"outline"}
+				>
+					Go to Dashboard
+				</Button>
 			)}
 		</div>
 	);

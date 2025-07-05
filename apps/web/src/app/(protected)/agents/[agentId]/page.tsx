@@ -3,11 +3,12 @@
 import { AgentDetailsForm } from "@/components/agent-details-form";
 import { AgentLogsTable } from "@/components/agent-logs-table";
 import { DeleteAgentDialog } from "@/components/delete-agent-dialog";
+import { FullPageLoader } from "@/components/ui/full-page-loader";
+import type { Agent, ApiResponse } from "@/types";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
 
-async function getAgent(agentId: string) {
+async function getAgent(agentId: string): Promise<ApiResponse<Agent>> {
 	const res = await fetch(`/api/agents/${agentId}`);
 	if (!res.ok) {
 		throw new Error("Failed to fetch agent");
@@ -30,7 +31,7 @@ export default function AgentPage() {
 		data: agentData,
 		isLoading: isAgentLoading,
 		error: agentError,
-	} = useQuery({
+	} = useQuery<ApiResponse<Agent>>({
 		queryKey: ["agent", agentId],
 		queryFn: () => getAgent(agentId),
 	});
@@ -44,12 +45,7 @@ export default function AgentPage() {
 		queryFn: () => getAgentLogs(agentId),
 	});
 
-	if (isAgentLoading || areLogsLoading)
-		return (
-			<div className="flex min-h-screen items-center justify-center">
-				<Loader2 className="animate-spin" />
-			</div>
-		);
+	if (isAgentLoading || areLogsLoading) return <FullPageLoader />;
 	if (agentError || logsError)
 		return (
 			<p className="text-red-500 text-center p-8">Error loading agent data.</p>
@@ -62,16 +58,18 @@ export default function AgentPage() {
 				<DeleteAgentDialog agentId={agentId} />
 			</div>
 
-			<div className="space-y-8">
-				<div>
-					<h2 className="text-2xl font-mono mb-4">Details</h2>
-					<AgentDetailsForm agent={agentData?.data} />
+			{agentData?.data && (
+				<div className="space-y-8">
+					<div>
+						<h2 className="text-2xl font-mono mb-4">Details</h2>
+						<AgentDetailsForm agent={agentData.data} />
+					</div>
+					<div>
+						<h2 className="text-2xl font-mono mb-4">Logs</h2>
+						<AgentLogsTable logs={logsData?.data} />
+					</div>
 				</div>
-				<div>
-					<h2 className="text-2xl font-mono mb-4">Logs</h2>
-					<AgentLogsTable logs={logsData?.data} />
-				</div>
-			</div>
+			)}
 		</div>
 	);
 }
