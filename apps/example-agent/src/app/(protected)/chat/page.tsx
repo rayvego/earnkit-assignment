@@ -20,11 +20,19 @@ type Message = {
 const freeTierAgent = new EarnKit({
 	agentId: process.env.NEXT_PUBLIC_FREE_TIER_AGENT_ID!,
 	debug: true,
+	baseUrl:
+		process.env.NODE_ENV === "production"
+			? "https://earnkit-assignment-web.vercel.app/"
+			: "http://localhost:3000",
 });
 
 const creditBasedAgent = new EarnKit({
 	agentId: process.env.NEXT_PUBLIC_CREDIT_BASED_AGENT_ID!,
 	debug: true,
+	baseUrl:
+		process.env.NODE_ENV === "production"
+			? "https://earnkit-assignment-web.vercel.app/"
+			: "http://localhost:3000",
 });
 
 export default function ChatPage() {
