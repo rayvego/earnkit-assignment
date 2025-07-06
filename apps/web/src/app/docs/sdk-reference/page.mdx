@@ -14,32 +14,125 @@ pnpm add earnkit-sdk
 
 ## Quick Start
 
+This guide provides a practical overview of the most common SDK workflows, based on the implementation in the example agent.
+
+### 1. Initialization
+
+First, import and instantiate the `EarnKit` class. You only need to do this once per agent in your application.
+
 ```typescript
-import { EarnKit } from 'earnkit-sdk';
+import { EarnKit, EarnKitApiError } from 'earnkit-sdk';
 
-// Initialize SDK
-const earnkit = new EarnKit({
-  agentId: 'your-agent-id', // Get this from your EarnKit dashboard
-  baseUrl: 'https://your-api.com', // Optional: defaults to http://localhost:3000
-  debug: true, // Optional: enable debug logging
-  requestTimeoutMs: 30000 // Optional: request timeout in milliseconds
+const agent = new EarnKit({
+  agentId: process.env.NEXT_PUBLIC_AGENT_ID!, // Your Agent ID from the dashboard
+  baseUrl: 'https://your-deployed-backend.vercel.app', // The URL of your deployed 'web' app, "https://api.earnkit.com" for production
+  debug: true, // Optional: Enable debug logging
 });
+```
 
-// Basic usage pattern
-const { eventId } = await earnkit.track({ 
-  walletAddress: '0x742d35Cc6435C0532925a3b8b98C31d5b1c9c2c4' 
-});
+### 2. Core Flow: Charging for an AI Request
 
-try {
-  // Your AI logic here
-  const result = await processAIRequest();
-  
-  // Finalize charge on success
-  await earnkit.capture({ eventId });
-} catch (error) {
-  // Refund on failure
-  await earnkit.release({ eventId });
-  throw error;
+This is the most important pattern. The logic is wrapped in a `try/catch` block to ensure users are never charged for failed requests.
+
+```typescript
+async function handleAIRequest(userMessage: string, userWalletAddress: string) {
+  // This variable is crucial for the release logic
+  let eventId: string | null = null;
+
+  try {
+    // 1. Track the event to place a hold on the user's balance
+    console.log("Tracking event...");
+    const trackResponse = await agent.track({
+      walletAddress: userWalletAddress,
+    });
+    eventId = trackResponse.eventId;
+
+    // 2. Execute your core AI logic
+    console.log("Calling AI...");
+    const aiResponse = await callMyGeminiAPI(userMessage);
+
+    // 3. If the AI call succeeds, capture the event to finalize the charge
+    console.log("Capturing event...");
+    await agent.capture({ eventId });
+
+    // 4. (Optional) Refresh the user's balance in your UI
+    refreshBalanceInUI(userWalletAddress);
+
+    return aiResponse;
+
+  } catch (error) {
+    // 5. If any step fails, release the hold on the funds
+    if (eventId) {
+      console.log("Error occurred, releasing funds...");
+      await agent.release({ eventId });
+    }
+
+    // 6. Handle specific errors from the SDK
+    if (error instanceof EarnKitApiError) {
+      // e.g., "Insufficient funds. Please top up your balance."
+      throw new Error(`API Error: ${error.message}`);
+    } else {
+      // Handle other errors (e.g., AI API failure)
+      throw new Error("An unexpected error occurred.");
+    }
+  }
+}
+```
+
+### 3. User Flow: Topping Up a Balance
+
+This flow shows how to use the SDK to fetch top-up options and process a user's on-chain transaction.
+
+```typescript
+// Assume wallet is your user's connected wallet object (from Privy, RainbowKit, etc.)
+async function handleTopUp(wallet: any, userWalletAddress: string) {
+  try {
+    // 1. Fetch the pre-configured purchase options from your dashboard
+    const { options } = await agent.getTopUpDetails();
+    if (!options || options.length === 0) {
+      console.log("No top-up options available.");
+      return;
+    }
+
+    // 2. Assume the user selects the first option in your UI
+    const selectedOption = options[0];
+
+    // 3. Use the user's wallet to send the on-chain transaction
+    // The to and value come directly from the selected option
+    const tx = await wallet.sendTransaction({
+      to: selectedOption.to,
+      value: BigInt(selectedOption.value), // Use BigInt to avoid precision loss
+      chainId: 84532, // e.g., Base Sepolia
+    });
+    const txReceipt = await tx.wait(); // Wait for the transaction to be mined
+
+    // 4. Submit the transaction hash to the backend for monitoring
+    await agent.submitTopUpTransaction({
+      txHash: txReceipt.transactionHash,
+      walletAddress: userWalletAddress,
+      amountInEth: selectedOption.amountInEth,
+      creditsToTopUp: selectedOption.creditsToTopUp,
+    });
+
+    // 5. Poll for the balance update to provide a great UX
+    const initialBalance = await agent.getBalance({ walletAddress: userWalletAddress });
+
+    agent.pollForBalanceUpdate({
+      walletAddress: userWalletAddress,
+      initialBalance,
+      onConfirmation: (newBalance) => {
+        console.log("Top-up successful! New balance:", newBalance);
+        // Update your UI here
+      },
+      onTimeout: () => {
+        console.log("Confirmation is taking longer than expected. Please check back soon.");
+      },
+    });
+
+  } catch (error) {
+    console.error("Top-up failed:", error);
+    // Handle errors in your UI
+  }
 }
 ```
 
@@ -270,7 +363,7 @@ options.forEach(option => {
 const selectedOption = options[0];
 const tx = await wallet.sendTransaction({
   to: selectedOption.to,
-  value: selectedOption.value
+  value: BigInt(selectedOption.value) // Use BigInt to avoid precision loss
 });
 ```
 
@@ -582,8 +675,6 @@ interface FreeTierConfig {
   rate: number;       // ETH charged per prompt after threshold
 }
 ```
-- First 50 prompts free per wallet
-- 0.0001 ETH per prompt thereafter
 
 ### Credit-Based Model
 ```typescript
@@ -595,8 +686,6 @@ interface CreditBasedConfig {
   }[];
 }
 ```
-- 10 credits per prompt (configurable via `creditsToDeduct`)
-- Bulk purchase options with volume discounts
 
 ## Rate Limiting & Retry Logic
 
@@ -620,13 +709,18 @@ const earnkit = new EarnKit({
 The SDK is fully typed with TypeScript. Import types as needed:
 
 ```typescript
-import { 
-  EarnKit, 
-  EarnKitConfig, 
-  UserBalance, 
+import {
+  // Core Class
+  EarnKit,
+
+  // Configuration & Data Types
+  EarnKitConfig,
+  UserBalance,
   TopUpOption,
   FreeTierConfig,
   CreditBasedConfig,
+
+  // Custom Errors
   EarnKitApiError,
   EarnKitInputError,
   EarnKitInitializationError
