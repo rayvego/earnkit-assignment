@@ -113,7 +113,7 @@ The current implementation serves as a robust proof-of-concept. To evolve this i
 
 - We would integrate an application performance monitoring (APM) tool like **Sentry** for error tracking and **Grafana** (with Prometheus or OpenTelemetry) for metrics. We would define and monitor key indicators (e.g., API error rates, request latency) and configure automated alerts to notify an on-call engineer if a critical threshold is breached.
 
-### 3. Enhancing the Developer & User Experience
+### 6. Enhancing the Developer & User Experience
 
 - **Real-time Updates via WebSockets & Webhooks:** The current polling for balance updates is effective but inefficient. In production, this would be replaced by a push-based system.
     - **WebSockets:** For the `example-agent`, the backend could use a WebSocket to instantly notify the client's UI when a top-up is confirmed.
