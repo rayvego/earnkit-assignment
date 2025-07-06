@@ -51,6 +51,8 @@ model Agent {
 
   usageEvents  UsageEvent[]
   userBalances UserBalance[]
+
+  @@index([developerId])
 }
 
 model UserBalance {
@@ -86,6 +88,7 @@ model UsageEvent {
   userWalletAddress String
 
   @@unique([agentId, idempotencyKey])
+  @@index([agentId, userWalletAddress, status])
 }
 
 model TopUpTransaction {
@@ -101,4 +104,6 @@ model TopUpTransaction {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([status])
 }
